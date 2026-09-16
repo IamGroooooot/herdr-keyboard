@@ -14,7 +14,16 @@
     "rootDir": "src",
     "outDir": "dist",
     "sourceMap": true,
-    "types": ["node"]
+    "types": [
+      "node"
+    ],
+    "noImplicitReturns": true,
+    "noImplicitOverride": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "noUncheckedSideEffectImports": true,
+    "noEmitOnError": true
   },
-  "include": ["src/**/*.ts"]
+  "include": [
+    "src/**/*.ts"
+  ]
 }

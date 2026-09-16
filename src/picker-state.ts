@@ -1,12 +1,12 @@
-import { Either, Schema } from 'effect';
+import { Either } from 'effect';
 import type { KeyboardConfig } from './config.js';
 import type { View } from './terminal/view.js';
 import { hitTest } from './terminal/view.js';
 import { keyAction } from './domain/actions.js';
-import type { Action, InputEvent, PickerMode } from './domain/actions.js';
+import type { InputEvent, PickerMode } from './domain/actions.js';
 import { baseKeys, composedKey, setBase } from './domain/composer.js';
 import type { Composer } from './domain/composer.js';
-import { BaseKey, Direction, Modifier } from './domain/keys.js';
+import { BaseKey } from './domain/keys.js';
 import type { KeyChord } from './domain/keys.js';
 
 export interface PickerState {
@@ -39,12 +39,35 @@ export function updatePicker(state: PickerState, event: InputEvent, view: View, 
     mode: composing ? { _tag: 'Shortcuts' } : { _tag: 'Compose' }, page: 0, selected: 0, status: '',
   });
   if (view.compact || action === undefined) return keep(state);
-  if (typeof action === 'number') return choose(state, action, view, config);
-  if (composing) return updateComposer(state, action, view);
-  if (action === 'enter') return choose(state, state.selected, view, config);
-  if (action === 'up' || action === 'left') return keep({ ...state, selected: Math.max(0, state.selected - 1) });
-  if (action === 'down' || action === 'right') return keep({ ...state, selected: state.selected + 1 });
-  return navigate(state, action, view);
+  switch (action) {
+    case 'ctrl': case 'alt': case 'shift':
+      return composing ? keep({ ...state,
+        composer: { ...state.composer, [action]: !state.composer[action] }, status: '',
+      }) : keep(state);
+    case 'type-key':
+      return composing ? keep({ ...state,
+        mode: { _tag: 'TypingKey', text: '' }, status: 'Type key name. Enter: set',
+      }) : keep(state);
+    case 'send':
+      return composing ? sendComposedKey(state) : keep(state);
+    case 'enter':
+      return composing ? sendComposedKey(state) : choose(state, state.selected, view, config);
+    case 'up': case 'down': case 'left': case 'right':
+      return composing ? keep({ ...state,
+        composer: { ...state.composer, base: BaseKey.make(action) }, status: '',
+      }) : keep({ ...state, selected: Math.max(0,
+        state.selected + (action === 'up' || action === 'left' ? -1 : 1),
+      ) });
+    case 'repeat':
+      return keep({ ...state, closeAfterSend: !state.closeAfterSend });
+    case 'next': case 'previous':
+      return keep({ ...state,
+        page: (state.page + (action === 'next' ? 1 : -1) + view.pages) % view.pages, selected: 0,
+      });
+    default:
+      // Every named action is handled above; only a numeric choice can remain.
+      return choose(state, action satisfies number, view, config);
+  }
 }
 
 function typeKey(state: PickerState, text: string, event: InputEvent, view: View): Decision {
@@ -74,27 +97,9 @@ function choose(state: PickerState, index: number, view: View, config: KeyboardC
   return entry ? keep({ ...state, selected: index, composer: { ...state.composer, base: entry.key }, status: '' }) : keep(state);
 }
 
-function updateComposer(state: PickerState, action: Action, view: View): Decision {
-  if (Schema.is(Modifier)(action)) return keep({ ...state,
-    composer: { ...state.composer, [action]: !state.composer[action] }, status: '',
-  });
-  if (Schema.is(Direction)(action)) return keep({ ...state,
-    composer: { ...state.composer, base: BaseKey.make(action) }, status: '',
-  });
-  if (action === 'type-key') return keep({ ...state, mode: { _tag: 'TypingKey', text: '' }, status: 'Type key name. Enter: set' });
-  if (action === 'send' || action === 'enter') {
-    const key = composedKey(state.composer);
-    return key ? { _tag: 'Send', state, key, label: key } : keep({ ...state, status: 'Choose a key first.' });
-  }
-  return navigate(state, action, view);
-}
-
-function navigate(state: PickerState, action: Action, view: View): Decision {
-  if (action === 'repeat') return keep({ ...state, closeAfterSend: !state.closeAfterSend });
-  if (action === 'next' || action === 'previous') return keep({ ...state,
-    page: (state.page + (action === 'next' ? 1 : -1) + view.pages) % view.pages, selected: 0,
-  });
-  return keep(state);
+function sendComposedKey(state: PickerState): Decision {
+  const key = composedKey(state.composer);
+  return key ? { _tag: 'Send', state, key, label: key } : keep({ ...state, status: 'Choose a key first.' });
 }
 
 function keep(state: PickerState): Decision {

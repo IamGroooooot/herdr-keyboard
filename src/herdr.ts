@@ -47,5 +47,6 @@ export const executeCommand: ExecuteCommand = (binary, args, env) => Effect.asyn
     return Effect.sync(() => { child.kill(); });
   } catch (cause) {
     resume(Effect.fail(new HerdrError({ message: cause instanceof Error ? cause.message : String(cause) })));
+    return undefined;
   }
 });
