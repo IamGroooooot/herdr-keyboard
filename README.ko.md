@@ -70,7 +70,7 @@ Herdr 전체 메뉴에서 **reload config**를 실행합니다. 기본 prefix에
 | 액션 ID | 동작 |
 | --- | --- |
 | `herdr-keyboard.open` | picker 열기 |
-| `herdr-keyboard.opt-down` | Alt + ↓ 바로 전송 |
+| `herdr-keyboard.opt-up` | Alt + ↑ 바로 전송 |
 | `herdr-keyboard.shift-tab` | Shift + Tab 바로 전송 |
 | `herdr-keyboard.shift-up` | Shift + ↑ 바로 전송 |
 

@@ -70,7 +70,7 @@ Run **reload config** from Herdr's global menu. With the default prefix, press *
 | Action ID | Result |
 | --- | --- |
 | `herdr-keyboard.open` | Open the picker |
-| `herdr-keyboard.opt-down` | Send Alt + ↓ directly |
+| `herdr-keyboard.opt-up` | Send Alt + ↑ directly |
 | `herdr-keyboard.shift-tab` | Send Shift + Tab directly |
 | `herdr-keyboard.shift-up` | Send Shift + ↑ directly |
 

@@ -1,6 +1,6 @@
 id = "herdr-keyboard"
 name = "Mobile Keyboard"
-version = "0.4.5"
+version = "0.4.6"
 min_herdr_version = "0.9.0"
 description = "Send hard-to-type key combinations from a mobile keyboard"
 platforms = ["linux", "macos", "windows"]
@@ -26,10 +26,10 @@ height = "80%"
 command = ["node", "dist/cli.js"]
 
 [[actions]]
-id = "opt-down"
-title = "Keyboard: Opt + Down"
+id = "opt-up"
+title = "Keyboard: Alt + Up"
 contexts = ["pane"]
-command = ["node", "dist/cli.js", "send", "alt+down"]
+command = ["node", "dist/cli.js", "send", "alt+up"]
 
 [[actions]]
 id = "shift-tab"
