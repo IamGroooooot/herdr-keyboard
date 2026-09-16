@@ -27,13 +27,14 @@ export function layout(columns: number, rows: number, total: number, page = 0, c
   if (width < 24 || height < minHeight) return { width, height, composing, compact: true, page: 0, pageSize: 0, pages: 0, buttons: [] };
   const cols = composing ? (width >= 40 ? 3 : 2) : (width >= 54 ? 2 : 1);
   const buttonWidth = Math.floor((width - 3) / cols);
-  const pageSize = Math.min(9, (height - (composing ? 12 : 8)) * cols);
+  const rowStride = 2; // One line per button, followed by one blank line.
+  const pageSize = Math.min(9, Math.floor((height - (composing ? 12 : 8)) / rowStride) * cols);
   const pages = Math.ceil(total / pageSize);
   const currentPage = Math.max(0, Math.min(page, pages - 1));
   const count = Math.min(pageSize, total - currentPage * pageSize);
   const choices: ReadonlyArray<Button> = Array.from({ length: count }, (_, index) => ({
     x: 2 + (index % cols) * buttonWidth,
-    y: (composing ? 7 : 4) + Math.floor(index / cols),
+    y: (composing ? 7 : 4) + Math.floor(index / cols) * rowStride,
     width: buttonWidth - 1, height: 1, action: index,
   }));
   return { width, height, composing, compact: false, page: currentPage, pageSize, pages,

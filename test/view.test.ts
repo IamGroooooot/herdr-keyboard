@@ -30,7 +30,8 @@ test('shortcut and composer buttons stay visible, disjoint and clickable across 
     assert.ok(view.page >= 0 && view.page < view.pages, context);
     for (const button of view.buttons.filter((button) => typeof button.action === 'number')) {
       assert.equal(button.height, 1, context);
-      assert.ok(button.y < view.height - (scenario.composing ? 5 : 4), `${context}: choice overlaps footer`);
+      assert.ok(button.y + 1 < view.height - (scenario.composing ? 5 : 4), `${context}: choice needs space before footer`);
+      assert.equal(hitTest(view, button.x, button.y + 1), undefined, `${context}: spacing is not a button`);
     }
     const occupied = new Set<string>();
     for (const { x, y, expected, actual } of cells) {
