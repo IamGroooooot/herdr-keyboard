@@ -24,6 +24,24 @@ herdr plugin pane open --plugin herdr-keyboard --entrypoint picker
 
 팝업을 열 때 선택한 터미널로 키를 보냅니다. 기본 설정에서는 한 번 전송한 뒤 팝업이 닫힙니다.
 
+### 팁: 단축키로 picker 열기
+
+Herdr 설정 파일인 `~/.config/herdr/config.toml`에 다음을 추가합니다. Windows의 기본 경로는 `%APPDATA%\herdr\config.toml`이며, 실제 경로는 `herdr --help`에서 확인할 수 있습니다.
+
+```toml
+[[keys.command]]
+key = "prefix+m"
+type = "plugin_action"
+command = "herdr-keyboard.open"
+description = "모바일 키보드 열기"
+```
+
+저장한 뒤 Herdr 전체 메뉴에서 **reload config**를 실행합니다. 기본 prefix 설정에서는 **Ctrl + B를 눌렀다 놓고 M**을 누르면 picker가 열립니다. prefix를 바꿨다면 변경한 키를 먼저 누릅니다. 이미 `prefix+m`을 사용 중이면 다른 키로 지정하세요.
+
+`type = "plugin_action"`은 `command`에 적힌 액션을 실행한다는 뜻입니다. 여기에는 셸 명령 대신 액션 ID인 `herdr-keyboard.open`을 넣습니다. 이 설정은 플러그인의 `keyboard.json`이 아닌 **Herdr의 `config.toml`**에 추가합니다.
+
+참고: [플러그인 키 바인딩](https://herdr.dev/docs/plugins/#keybindings), [Herdr 설정 다시 읽기](https://herdr.dev/docs/configuration/#reload-config).
+
 ## 자주 쓰는 조합 선택
 
 원하는 항목을 탭하거나 화면에 표시된 숫자를 누릅니다. Enter를 누를 필요는 없습니다.
@@ -75,15 +93,30 @@ herdr plugin pane open --plugin herdr-keyboard --entrypoint picker
 
 목록이나 조합 화면에서 `0`, `q`, Esc를 누르면 전송 없이 닫힙니다. Ctrl + C도 팝업을 닫지만, 키 이름 입력 중에는 입력만 취소합니다. 대상 터미널에 Ctrl + C를 보내려면 목록에서 해당 항목을 선택하거나 조합기로 전송하세요.
 
-## 팝업 없이 전송
+## 플러그인 액션 사용
 
-다음 Herdr 플러그인 액션은 선택한 터미널에 해당 조합을 바로 보냅니다.
+액션은 Herdr에서 호출할 수 있도록 플러그인이 등록한 기능입니다. 이 플러그인의 액션 ID는 `herdr-keyboard.액션이름` 형식입니다.
 
-| 액션 | 전송 키 |
+| 액션 ID | 동작 |
 | --- | --- |
-| Keyboard: Opt + Down | Alt + ↓ |
-| Keyboard: Shift + Tab | Shift + Tab |
-| Keyboard: Shift + Up | Shift + ↑ |
+| `herdr-keyboard.open` | picker 열기 |
+| `herdr-keyboard.opt-down` | 팝업 없이 Alt + ↓ 전송 |
+| `herdr-keyboard.shift-tab` | 팝업 없이 Shift + Tab 전송 |
+| `herdr-keyboard.shift-up` | 팝업 없이 Shift + ↑ 전송 |
+
+등록된 액션은 다음 명령으로 확인합니다.
+
+```sh
+herdr plugin action list --plugin herdr-keyboard
+```
+
+입력을 보낼 터미널을 선택한 뒤, 액션 ID를 지정해 실행합니다. 다음 명령은 picker를 엽니다.
+
+```sh
+herdr plugin action invoke herdr-keyboard.open
+```
+
+예를 들어 `herdr-keyboard.open` 대신 `herdr-keyboard.shift-tab`을 지정하면 선택한 터미널에 Shift + Tab을 바로 보냅니다. 단축키 설정의 `command`에도 같은 액션 ID를 사용할 수 있습니다.
 
 ## 사용자 설정
 
