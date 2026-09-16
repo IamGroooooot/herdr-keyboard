@@ -44,7 +44,7 @@ herdr plugin pane open --plugin herdr-keyboard --entrypoint picker
 
 ## 키 조합 만들기
 
-팝업 위쪽의 **Compose**를 탭하거나 `c`를 누릅니다.
+팝업 위쪽의 **Compose**를 탭하거나 `m`을 누릅니다.
 
 1. **Ctrl / Alt / Shift** 중 필요한 키를 켭니다. 다시 누르면 꺼집니다.
 2. 방향 키, Tab, Enter 등 함께 보낼 기본 키를 선택합니다.
@@ -56,12 +56,12 @@ herdr plugin pane open --plugin herdr-keyboard --entrypoint picker
 
 | 키 | 동작 |
 | --- | --- |
-| `t` | Ctrl 켜기 / 끄기 |
+| `c` | Ctrl 켜기 / 끄기 |
 | `a` | Alt 켜기 / 끄기 |
 | `s` | Shift 켜기 / 끄기 |
 | `1`–`9` | 화면의 기본 키 선택 |
 | Enter | 완성된 조합 전송 |
-| `c` | 자주 쓰는 조합 목록으로 돌아가기 |
+| `m` | 자주 쓰는 조합 목록으로 돌아가기 |
 
 ### 문자, 숫자, 기능 키 조합
 

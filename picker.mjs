@@ -67,12 +67,12 @@ export function pickShortcut(input = process.stdin, output = process.stdout, env
       }
       if (event.type === 'click') { act(hitTest(view, event.x, event.y)); return; }
       const key = event.key;
-      if (composing && ['a', 's', 't', 'k'].includes(key)) {
-        act({ a: 'alt', s: 'shift', t: 'ctrl', k: 'type-key' }[key]);
+      if (composing && ['a', 's', 'c', 'k'].includes(key)) {
+        act({ a: 'alt', s: 'shift', c: 'ctrl', k: 'type-key' }[key]);
         return;
       }
       const action = /^[1-9]$/.test(key) ? Number(key) - 1 :
-        ({ q: 'close', '0': 'close', r: 'repeat', p: 'previous', n: 'next', c: 'compose' }[key] || key);
+        ({ q: 'close', '0': 'close', r: 'repeat', p: 'previous', n: 'next', m: 'compose' }[key] || key);
       act(action);
     }
 

@@ -109,7 +109,7 @@ test('composer previews multiple modifiers and sends only on explicit Send', asy
   output.on('data', (data) => { screen += data; });
   const sent = [];
   const done = pickShortcut(input, output, { HERDR_PANE_ID: 'w1:p2' }, (pane, key) => sent.push([pane, key]));
-  input.write('cats1'); // Compose, Alt, Ctrl, Shift, Up.
+  input.write('macs1'); // Compose, Alt, Ctrl, Shift, Up.
   assert.deepEqual(sent, []);
   assert.match(screen, /ctrl\+alt\+shift\+up/);
   input.write('\r');
@@ -139,12 +139,15 @@ test('custom letter/function keys, modifier toggles, and keep-open compose corre
   const output = new PassThrough();
   const sent = [];
   const done = pickShortcut(input, output, { HERDR_PANE_ID: 'w1:p2' }, (_, key) => sent.push(key));
-  input.write('crtska\r'); // Compose, keep open, Ctrl, Shift, type a, set.
+  input.write('mrcska\r'); // Compose, keep open, Ctrl, Shift, type a, set.
   assert.deepEqual(sent, []);
   input.write('\r');
   assert.deepEqual(sent, ['ctrl+shift+a']);
   input.write('skf2\r\r'); // Toggle Shift off; set F2; send.
   assert.deepEqual(sent, ['ctrl+shift+a', 'ctrl+f2']);
+  input.write('c\r'); // Toggle Ctrl off without leaving the composer.
+  input.write('m2'); // Return to shortcuts and send Shift + Tab.
+  assert.deepEqual(sent, ['ctrl+shift+a', 'ctrl+f2', 'f2', 'shift+tab']);
   input.write('0');
   await done;
 });
@@ -153,7 +156,7 @@ test('empty composition and invalid custom keys never send', async () => {
   const input = terminal();
   const output = new PassThrough();
   const done = pickShortcut(input, output, { HERDR_PANE_ID: 'w1:p2' }, () => assert.fail('must not send'));
-  input.write('c\rkbroke\r');
+  input.write('m\rkbroke\r');
   input.write('\x03'); // Cancel typing.
   input.write('0');
   await done;

@@ -1,9 +1,9 @@
 export function render(view, entries, pane, selected, closeAfterSend, status = '', composer = null) {
   const at = (x, y, text) => `\x1b[${y};${x}H${fit(text, Math.max(0, view.width - x + 1))}`;
   let output = '\x1b[2J\x1b[H';
-  if (view.compact) return output + at(1, 1, `Need 25x${view.composing ? 14 : 10}. c:back q:exit`);
+  if (view.compact) return output + at(1, 1, `Need 25x${view.composing ? 14 : 10}. m:back q:exit`);
   output += at(2, 1, `Keyboard > ${pane}`);
-  output += at(2, 2, `[c] ${composer ? 'Shortcuts' : 'Compose'}   ${view.page + 1}/${view.pages}`);
+  output += at(2, 2, `[m] ${composer ? 'Shortcuts' : 'Compose'}   ${view.page + 1}/${view.pages}`);
   if (composer) renderComposer();
   renderButtons();
   renderFooter();
@@ -11,7 +11,7 @@ export function render(view, entries, pane, selected, closeAfterSend, status = '
 
   function renderComposer() {
     for (const [index, modifier] of ['ctrl', 'alt', 'shift'].entries()) {
-      const hotkey = { ctrl: 't', alt: 'a', shift: 's' }[modifier];
+      const hotkey = { ctrl: 'c', alt: 'a', shift: 's' }[modifier];
       const label = { ctrl: 'Ctrl', alt: 'Alt', shift: 'Shift' }[modifier];
       output += `\x1b[4;${1 + index * 8}H${composer[modifier] ? '\x1b[7m' : '\x1b[100m'}${fit(`[${hotkey}]${label}`, 8)}\x1b[0m`;
     }
