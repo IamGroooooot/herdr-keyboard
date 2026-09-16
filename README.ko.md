@@ -102,8 +102,6 @@ herdr plugin config-dir herdr-keyboard
 <details>
 <summary>로컬 개발</summary>
 
-TypeScript + Effect를 사용합니다.
-
 ```sh
 git clone https://github.com/IamGroooooot/herdr-keyboard.git
 cd herdr-keyboard
@@ -112,6 +110,6 @@ npm run build
 herdr plugin link .
 ```
 
-코드를 수정한 뒤 `npm run check`로 타입 검사·테스트·빌드를 실행합니다. `plugin link`는 자동으로 빌드하지 않습니다.
+코드를 수정한 뒤 `npm run check`를 실행합니다. `plugin link`는 자동으로 빌드하지 않습니다.
 
 </details>

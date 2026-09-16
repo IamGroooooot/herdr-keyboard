@@ -102,8 +102,6 @@ Create `keyboard.json` there:
 <details>
 <summary>Local development</summary>
 
-TypeScript + Effect.
-
 ```sh
 git clone https://github.com/IamGroooooot/herdr-keyboard.git
 cd herdr-keyboard
@@ -112,6 +110,6 @@ npm run build
 herdr plugin link .
 ```
 
-After editing the code, run `npm run check` to check types, run tests, and rebuild. `plugin link` does not build automatically.
+After editing the code, run `npm run check`. `plugin link` does not build automatically.
 
 </details>
