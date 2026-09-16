@@ -26,7 +26,9 @@ test('shortcut and composer buttons stay visible, disjoint and clickable across 
   for (const { scenario, view, cells } of results) {
     const context = JSON.stringify(scenario);
     assert.equal(view.compact, false, context);
-    assert.ok(view.pageSize >= 1 && view.pageSize <= 9, context);
+    assert.ok(view.pageSize >= 1 && view.pageSize <= 10, context);
+    const columns = new Set(view.buttons.filter((button) => typeof button.action === 'number').map((button) => button.x)).size;
+    assert.equal(view.pageSize % columns, 0, `${context}: page capacity should fill rows`);
     assert.ok(view.page >= 0 && view.page < view.pages, context);
     for (const button of view.buttons.filter((button) => typeof button.action === 'number')) {
       assert.equal(button.height, 1, context);

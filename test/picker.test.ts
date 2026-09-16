@@ -93,6 +93,40 @@ test('Down follows the visible column after resizing to a two-column menu', { ti
   assert.deepEqual(session.sent, [['w1:p2', 'shift+enter']]);
 });
 
+test('the tenth shortcut works by keyboard and touch, and the next page starts at the eleventh', { timeout: 5000 }, async (t) => {
+  for (const selection of ['0', '\x1b[<0;42;12M\x1b[<0;42;12m']) {
+    // Arrange: two columns, five rows, with ctrl+a in the bottom-right button.
+    const session = await openPicker(t);
+
+    // Act
+    session.output.columns = 80;
+    session.output.emit('resize');
+    session.input.write('r'); // Keep on
+    session.input.write(selection); // Tenth shortcut: ctrl+a
+    session.input.write('n1q'); // Next page, ctrl+e, close
+    const result = await session.done;
+
+    // Assert
+    assert.ok(Exit.isSuccess(result));
+    assert.deepEqual(session.sent, [['w1:p2', 'ctrl+a'], ['w1:p2', 'ctrl+e']]);
+    assert.match(session.output.screen, / 0 ctrl\+a/);
+    assert.match(session.output.screen, /\[q\] Exit/);
+  }
+});
+
+test('zero does nothing when the page has no tenth choice', { timeout: 5000 }, async (t) => {
+  // Arrange: the narrow page has seven choices.
+  const session = await openPicker(t);
+
+  // Act
+  session.input.write('02');
+  const result = await session.done;
+
+  // Assert
+  assert.ok(Exit.isSuccess(result));
+  assert.deepEqual(session.sent, [['w1:p2', 'shift+tab']]);
+});
+
 test('shrinking the terminal disables hidden shortcuts', { timeout: 5000 }, async (t) => {
   // Arrange
   const session = await openPicker(t);

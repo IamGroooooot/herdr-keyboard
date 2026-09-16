@@ -29,7 +29,8 @@ export function render(view: View, content: ScreenContent): string {
     composer ? textAt(view, 1, 5, composer.typing !== null
       ? `Key: ${composer.typing}_` : (composer.preview || 'Choose modifiers + key')) : '',
     ...view.buttons.map((button) => renderButton(view, button, content)),
-    textAt(view, 2, view.height - 4, status || (composer ? 'Select key, then Send.' : 'Tap / 1-9 to send.')),
+    textAt(view, 2, view.height - 4, status || (composer ? 'Select key, then Send.'
+      : `Tap / ${view.pageSize === 10 ? '1-9, 0' : '1-9'} to send.`)),
   ].join('');
 }
 
@@ -46,7 +47,7 @@ function renderButton(view: View, button: Button, content: ScreenContent): strin
     case 'previous': return textAt(view, button.x, button.y, '[p] Prev');
     case 'next': return textAt(view, button.x, button.y, '[n] Next');
     case 'repeat': return textAt(view, button.x, button.y, `[r] Keep:${content.closeAfterSend ? 'OFF' : 'ON '}`);
-    case 'close': return textAt(view, button.x, button.y, '[0] Exit');
+    case 'close': return textAt(view, button.x, button.y, '[q] Exit');
     case 'send': return textAt(view, button.x, button.y, '[enter] Send');
     case 'type-key': return textAt(view, button.x, button.y, '[k] Key');
     default: return action satisfies never;
@@ -58,7 +59,7 @@ function renderChoice(button: Button, index: number, view: View, content: Screen
   if (!entry) return '';
   const active = content.composer ? content.composer.base === entry.key : content.selected === index;
   return cursorAt(button.x, button.y) + (active ? '\x1b[7m' : '\x1b[100m') +
-    fit(` ${index + 1} ${entry.label}`, button.width) + '\x1b[0m';
+    fit(` ${(index + 1) % 10} ${entry.label}`, button.width) + '\x1b[0m';
 }
 
 function textAt(view: View, x: number, y: number, text: string): string {

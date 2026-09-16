@@ -5,7 +5,8 @@ import { initialState, updatePicker } from '../src/picker-state.js';
 import { layout } from '../src/terminal/layout.js';
 
 test('arrows follow the shortcut grid without wrapping rows, columns or pages', () => {
-  // Arrange: wide pages have nine choices in two columns, with an empty bottom-right cell.
+  // Arrange: wide pages have ten choices; a custom list can leave the last row incomplete.
+  const oddConfig = { ...defaultConfig, shortcuts: [defaultConfig.shortcuts[0], ...defaultConfig.shortcuts.slice(1, -1)] as const };
   const cases = [
     { name: 'down in left column', width: 80, page: 0, from: 0, key: 'down', to: 2 },
     { name: 'down in right column', width: 80, page: 0, from: 1, key: 'down', to: 3 },
@@ -15,10 +16,12 @@ test('arrows follow the shortcut grid without wrapping rows, columns or pages', 
     { name: 'top edge', width: 80, page: 0, from: 1, key: 'up', to: 1 },
     { name: 'left edge', width: 80, page: 0, from: 2, key: 'left', to: 2 },
     { name: 'right edge', width: 80, page: 0, from: 3, key: 'right', to: 3 },
-    { name: 'empty cell below', width: 80, page: 0, from: 7, key: 'down', to: 7 },
-    { name: 'empty cell to right', width: 80, page: 0, from: 8, key: 'right', to: 8 },
+    { name: 'down to tenth choice', width: 80, page: 0, from: 7, key: 'down', to: 9 },
+    { name: 'right to tenth choice', width: 80, page: 0, from: 8, key: 'right', to: 9 },
+    { name: 'empty cell below', width: 80, page: 1, from: 7, key: 'down', to: 7, config: oddConfig },
+    { name: 'empty cell to right', width: 80, page: 1, from: 8, key: 'right', to: 8, config: oddConfig },
     { name: 'bottom edge', width: 80, page: 0, from: 8, key: 'down', to: 8 },
-    { name: 'last page has only one row', width: 80, page: 2, from: 1, key: 'down', to: 1 },
+    { name: 'last page bottom edge', width: 80, page: 1, from: 9, key: 'down', to: 9 },
     { name: 'single column down', width: 40, page: 0, from: 0, key: 'down', to: 1 },
     { name: 'single column up', width: 40, page: 0, from: 1, key: 'up', to: 0 },
     { name: 'single column has no right neighbor', width: 40, page: 0, from: 0, key: 'right', to: 0 },
@@ -26,9 +29,10 @@ test('arrows follow the shortcut grid without wrapping rows, columns or pages', 
 
   // Act
   const results = cases.map((scenario) => {
-    const state = { ...initialState(defaultConfig), selected: scenario.from, page: scenario.page };
-    const view = layout(scenario.width, 22, defaultConfig.shortcuts.length, scenario.page);
-    return { scenario, result: updatePicker(state, { type: 'key', key: scenario.key }, view, defaultConfig) };
+    const config = scenario.config ?? defaultConfig;
+    const state = { ...initialState(config), selected: scenario.from, page: scenario.page };
+    const view = layout(scenario.width, 22, config.shortcuts.length, scenario.page);
+    return { scenario, result: updatePicker(state, { type: 'key', key: scenario.key }, view, config) };
   });
 
   // Assert

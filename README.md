@@ -34,20 +34,20 @@ These controls apply outside key-name entry.
 
 | Control | Action |
 | --- | --- |
-| In the shortcut list: tap a shortcut / `1`–`9` | Send the shortcut immediately |
+| In the shortcut list: tap a shortcut / `1`–`9`, `0` | Send the shortcut immediately |
 | Arrow keys, then Enter in the shortcut list | Move between buttons in that direction, then send |
 | **Compose** / `m` | Switch between the shortcut list and Compose |
 | `c` / `a` / `s` in Compose | Toggle Ctrl / Alt / Shift |
-| Tap a base key / `1`–`9` in Compose | Select the base key without sending |
+| Tap a base key / `1`–`9`, `0` in Compose | Select the base key without sending |
 | **Send** / Enter in Compose | Send the displayed combination |
 | **Key** / `k` in Compose | Enter a key name such as `a`, `7`, `f2`, or `plus` |
 | **Prev** / `p`, **Next** / `n` | Change pages |
 | **Keep** / `r` | Toggle keeping the picker open after sending |
-| `0`, `q`, Esc, Ctrl + C | Close the picker |
+| `q`, Esc, Ctrl + C | Close the picker |
 
 During key-name entry, the first Enter confirms the base key. The next Enter sends the combination. Esc or Ctrl + C cancels key-name entry.
 
-Touch requires a terminal app that forwards mouse events. Use `1`–`9` to select without touch.
+Touch requires a terminal app that forwards mouse events. Use `1`–`9` to select without touch, or `0` for the tenth item when shown.
 
 ## Open with `prefix+k`
 

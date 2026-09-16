@@ -20,13 +20,14 @@ export function keyAction(key: string, composing: boolean): Action | undefined {
     if (key === 'k') return 'type-key';
   }
   if (/^[1-9]$/.test(key)) return Number(key) - 1;
+  if (key === '0') return 9;
   return commonBindings.get(key);
 }
 
 export const modifierHotkeys = { ctrl: 'c', alt: 'a', shift: 's' } as const satisfies Readonly<Record<Modifier, string>>;
 
 const commonBindings: ReadonlyMap<string, Action> = new Map([
-  ['q', 'close'], ['0', 'close'], ['close', 'close'], ['r', 'repeat'],
+  ['q', 'close'], ['close', 'close'], ['r', 'repeat'],
   ['p', 'previous'], ['n', 'next'], ['m', 'compose'],
   ['up', 'up'], ['down', 'down'], ['left', 'left'], ['right', 'right'],
   ['enter', 'enter'], ['next', 'next'], ['previous', 'previous'],

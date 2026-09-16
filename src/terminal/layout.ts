@@ -28,7 +28,8 @@ export function layout(columns: number, rows: number, total: number, page = 0, c
   const cols = composing ? (width >= 40 ? 3 : 2) : (width >= 54 ? 2 : 1);
   const buttonWidth = Math.floor((width - 3) / cols);
   const rowStride = 2; // One line per button, followed by one blank line.
-  const pageSize = Math.min(9, Math.floor((height - (composing ? 12 : 8)) / rowStride) * cols);
+  const maxChoices = cols === 2 ? 10 : 9;
+  const pageSize = Math.min(maxChoices, Math.floor((height - (composing ? 12 : 8)) / rowStride) * cols);
   const pages = Math.ceil(total / pageSize);
   const currentPage = Math.max(0, Math.min(page, pages - 1));
   const count = Math.min(pageSize, total - currentPage * pageSize);
