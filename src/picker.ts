@@ -1,9 +1,9 @@
-import { Effect, Either, Queue } from 'effect';
+import { Effect, Option, Queue } from 'effect';
 import { loadConfig } from './config.js';
 import type { Environment, KeyboardConfig } from './config.js';
 import { baseKeys, composedKey } from './domain/composer.js';
 import { initialState, updatePicker } from './picker-state.js';
-import type { PickerState } from './picker-state.js';
+import type { Decision, PickerState } from './picker-state.js';
 import type { PaneId } from './domain/keys.js';
 import { Herdr, targetPane } from './herdr.js';
 import { TerminalError, terminalOperation, terminalSession } from './terminal/session.js';
@@ -19,9 +19,7 @@ export function pickShortcut(
     const config = yield* loadConfig(env);
     const herdr = yield* Herdr;
     const events = yield* terminalSession(input, output);
-    let state = initialState(config);
-    let screen = createScreen(state, config, output);
-    state = screen.state;
+    let screen = createScreen(initialState(config), config, output);
     yield* terminalOperation(() => output.write(renderScreen(screen, pane)));
 
     while (true) {
@@ -30,26 +28,34 @@ export function pickShortcut(
       if (event.type === 'error') return yield* new TerminalError({ message:
         event.cause instanceof Error ? event.cause.message : String(event.cause),
       });
-      if (event.type !== 'resize') {
-        const decision = updatePicker(screen.state, event, screen.view, config);
-        switch (decision._tag) {
-          case 'Close': return;
-          case 'Continue': state = decision.state; break;
-          case 'Send': {
-            state = decision.state;
-            const result = yield* Effect.either(herdr.sendKey(pane, decision.key));
-            if (Either.isRight(result) && state.closeAfterSend) return;
-            state = { ...state, status: Either.isLeft(result) ? `Failed: ${result.left.message}` : `Sent: ${decision.label}` };
-            break;
-          }
-          default: return assertNever(decision);
-        }
-      }
-      screen = createScreen(state, config, output);
-      state = screen.state;
+      const decision: Decision = event.type === 'resize'
+        ? { _tag: 'Continue', state: screen.state }
+        : updatePicker(screen.state, event, screen.view, config);
+      const nextState = yield* executeDecision(decision, pane, herdr);
+      if (Option.isNone(nextState)) return;
+      screen = createScreen(nextState.value, config, output);
       yield* terminalOperation(() => output.write(renderScreen(screen, pane)));
     }
   }));
+}
+
+function executeDecision(
+  decision: Decision, pane: PaneId, herdr: Herdr['Type'],
+): Effect.Effect<Option.Option<PickerState>> {
+  switch (decision._tag) {
+    case 'Close': return Effect.succeed(Option.none());
+    case 'Continue': return Effect.succeed(Option.some(decision.state));
+    case 'Send': {
+      const { state, key, label } = decision;
+      return herdr.sendKey(pane, key).pipe(Effect.match({
+        onFailure: (error) => Option.some({ ...state, status: `Failed: ${error.message}` }),
+        onSuccess: () => state.closeAfterSend
+          ? Option.none()
+          : Option.some({ ...state, status: `Sent: ${label}` }),
+      }));
+    }
+    default: return decision satisfies never;
+  }
 }
 
 function createScreen(state: PickerState, config: KeyboardConfig, output: TerminalOutput) {
@@ -69,8 +75,4 @@ function renderScreen(screen: ReturnType<typeof createScreen>, pane: PaneId) {
   return render(view, { entries, pane, selected: state.selected, closeAfterSend: state.closeAfterSend,
     status: state.status, composer,
   });
-}
-
-function assertNever(value: never): never {
-  throw new Error(`Unhandled picker decision: ${String(value)}`);
 }
