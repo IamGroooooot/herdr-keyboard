@@ -1,0 +1,22 @@
+import { Herdr } from '../src/herdr.js';
+import { BaseKey, KeyChord, PaneId } from '../src/domain/keys.js';
+import type { InputEvent, PickerMode } from '../src/domain/actions.js';
+import type { Composer } from '../src/domain/composer.js';
+
+function contracts(service: Herdr['Type'], pane: PaneId, key: KeyChord) {
+  service.sendKey(pane, key);
+  // @ts-expect-error Raw strings must be validated before sending.
+  service.sendKey('w1:p2', 'ctrl+a');
+  // @ts-expect-error Pane IDs and key chords are not interchangeable.
+  service.sendKey(key, pane);
+  // @ts-expect-error A chord cannot be used as the composer's base key.
+  const base: BaseKey = key;
+  // @ts-expect-error Key events cannot carry mouse coordinates.
+  const event: InputEvent = { type: 'key', x: 1, y: 2 };
+  // @ts-expect-error Text entry exists only in TypingKey mode.
+  const mode: PickerMode = { _tag: 'Shortcuts', text: 'abc' };
+  // @ts-expect-error Composer base keys must be validated.
+  const composer: Composer = { ctrl: false, alt: false, shift: false, base: 'ctrl+a' };
+  return { base, event, mode, composer };
+}
+void contracts;
