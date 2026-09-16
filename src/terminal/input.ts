@@ -4,7 +4,7 @@ import type { InputEvent } from '../domain/actions.js';
 // Unknown escape sequences and bracketed paste must never become number shortcuts.
 export function createInputDecoder(emit: (event: InputEvent) => void) {
   let pending = '';
-  let pasting = false;
+  let skipping: SkippedInput | undefined;
   let escapeTimer: ReturnType<typeof setTimeout> | undefined;
   const keys: Readonly<Record<string, string>> = { '\x1b[A': 'up', '\x1b[B': 'down', '\x1b[C': 'right', '\x1b[D': 'left',
     '\x1b[5~': 'previous', '\x1b[6~': 'next', '\r': 'enter', '\n': 'enter',
@@ -16,11 +16,11 @@ export function createInputDecoder(emit: (event: InputEvent) => void) {
     clearTimeout(escapeTimer);
     pending += Buffer.isBuffer(chunk) ? chunk.toString('latin1') : chunk;
     while (pending) {
-      if (pasting) {
-        const end = pending.indexOf('\x1b[201~');
-        if (end < 0) { pending = pending.slice(-5); return; }
-        pending = pending.slice(end + 6);
-        pasting = false;
+      if (skipping !== undefined) {
+        const result = skipPayload(pending, skipping);
+        pending = result.pending;
+        if (result._tag === 'Waiting') return;
+        skipping = undefined;
         continue;
       }
       if (pending === '\x1b') {
@@ -39,11 +39,11 @@ export function createInputDecoder(emit: (event: InputEvent) => void) {
       if (pending.startsWith('\x1b[')) {
         const sequence = pending.match(/^\x1b\[[0-?]*[ -/]*[@-~]/)?.[0];
         if (!sequence) {
-          if (pending.length > 128) pending = '';
+          if (pending.length > 128) { pending = ''; skipping = 'csi'; }
           return;
         }
         pending = pending.slice(sequence.length);
-        if (sequence === '\x1b[200~') { pasting = true; continue; }
+        if (sequence === '\x1b[200~') { skipping = 'paste'; continue; }
         const mouse = sequence.match(/^\x1b\[<0;(\d+);(\d+)M$/);
         if (mouse) emit({ type: 'click', x: Number(mouse[1]), y: Number(mouse[2]) });
         else if (keys[sequence]) emit({ type: 'key', key: keys[sequence] });
@@ -58,10 +58,37 @@ export function createInputDecoder(emit: (event: InputEvent) => void) {
         if (key) emit({ type: 'key', key });
         continue;
       }
-      if (pending[0] === '\x1b') { pending = pending.slice(2); continue; }
+      if (pending[0] === '\x1b') {
+        const introducer = pending.charAt(1);
+        if (introducer === ']') skipping = 'osc';
+        else if ('PX^_'.includes(introducer)) skipping = 'control-string';
+        pending = pending.slice(2);
+        continue;
+      }
       const char = pending.charAt(0);
       pending = pending.slice(1);
       emit({ type: 'key', key: keys[char] || char });
     }
   }
 }
+
+type SkippedInput = 'paste' | 'osc' | 'control-string' | 'csi';
+type SkipResult =
+  | { readonly _tag: 'Waiting'; readonly pending: string }
+  | { readonly _tag: 'Finished'; readonly pending: string };
+
+// Keep only a possible terminator prefix between reads, never the full payload.
+function skipPayload(pending: string, kind: SkippedInput): SkipResult {
+  const rule = skipRules[kind];
+  const end = rule.terminator.exec(pending);
+  return end === null
+    ? { _tag: 'Waiting', pending: rule.retain === 0 ? '' : pending.slice(-rule.retain) }
+    : { _tag: 'Finished', pending: pending.slice(end.index + end[0].length) };
+}
+
+const skipRules = {
+  paste: { terminator: /\x1b\[201~/, retain: 5 },
+  osc: { terminator: /\x07|\x1b\\|[\x18\x1a]/, retain: 1 },
+  'control-string': { terminator: /\x1b\\|[\x18\x1a]/, retain: 1 },
+  csi: { terminator: /[@-~]|[\x18\x1a]/, retain: 0 },
+} as const satisfies Readonly<Record<SkippedInput, { readonly terminator: RegExp; readonly retain: number }>>;

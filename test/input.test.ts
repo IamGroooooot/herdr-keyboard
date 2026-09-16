@@ -43,3 +43,29 @@ test('Escape closes on its own; disposing cancels the delayed Escape', async () 
   await new Promise((resolve) => setTimeout(resolve, 110));
   assert.equal(events.length, 1);
 });
+
+test('terminal response payloads never become shortcuts, at any read boundary', () => {
+  for (const response of ['\x1b]11;rgb:1234/5678/9012\x07', '\x1b]52;c;123\x1b\\',
+    '\x1bP1$r123\x1b\\', '\x1b_123\x1b\\', '\x1b^123\x1b\\', '\x1bX123\x1b\\']) {
+    for (let split = 1; split <= response.length; split++) {
+      const events: InputEvent[] = [];
+      const decoder = createInputDecoder((event) => events.push(event));
+      try {
+        decoder.feed(response.slice(0, split));
+        decoder.feed(response.slice(split) + '2');
+        assert.deepEqual(events, [{ type: 'key', key: '2' }]);
+      } finally { decoder.dispose(); }
+    }
+  }
+});
+
+test('overlong split CSI input stays ignored until its final byte', () => {
+  const events: InputEvent[] = [];
+  const decoder = createInputDecoder((event) => events.push(event));
+  try {
+    decoder.feed('\x1b[' + '1;'.repeat(100));
+    decoder.feed('23');
+    decoder.feed('M2');
+    assert.deepEqual(events, [{ type: 'key', key: '2' }]);
+  } finally { decoder.dispose(); }
+});
