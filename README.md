@@ -30,13 +30,15 @@ Herdr 설정 파일인 `~/.config/herdr/config.toml`에 다음을 추가합니�
 
 ```toml
 [[keys.command]]
-key = "prefix+m"
+key = "prefix+k"
 type = "plugin_action"
 command = "herdr-keyboard.open"
 description = "모바일 키보드 열기"
 ```
 
-저장한 뒤 Herdr 전체 메뉴에서 **reload config**를 실행합니다. 기본 prefix 설정에서는 **Ctrl + B를 눌렀다 놓고 M**을 누르면 picker가 열립니다. prefix를 바꿨다면 변경한 키를 먼저 누릅니다. 이미 `prefix+m`을 사용 중이면 다른 키로 지정하세요.
+저장한 뒤 Herdr 전체 메뉴에서 **reload config**를 실행합니다. 기본 prefix 설정에서는 **Ctrl + B를 눌렀다 놓고 K**를 누르면 picker가 열립니다. prefix를 바꿨다면 변경한 키를 먼저 누릅니다.
+
+`prefix+k`는 Herdr의 기본 ‘위쪽 pane으로 이동’ 키와 겹칩니다. 기존 `[keys]` 설정의 `focus_pane_up`을 다른 키로 바꾸거나 `""`로 비워 충돌을 해소하세요.
 
 `type = "plugin_action"`은 `command`에 적힌 액션을 실행한다는 뜻입니다. 여기에는 셸 명령 대신 액션 ID인 `herdr-keyboard.open`을 넣습니다. 이 설정은 플러그인의 `keyboard.json`이 아닌 **Herdr의 `config.toml`**에 추가합니다.
 
