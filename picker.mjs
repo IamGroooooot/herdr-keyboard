@@ -42,78 +42,66 @@ export function pickShortcut(input = process.stdin, output = process.stdout, env
   return new Promise((resolve) => {
     const wasRaw = Boolean(input.isRaw);
     let finished = false;
-    const draw = () => {
-      view = layout(output.columns || 40, output.rows || 22, entries.length, page, composing);
-      page = view.page;
-      selected = Math.min(selected, Math.max(0, entries.length - page * view.pageSize - 1), Math.max(0, view.pageSize - 1));
-      output.write(render(view, entries, pane, selected, closeAfterSend, status,
-        composing ? { ...composer, preview: composedKey(composer) } : null));
-    };
-    const finish = () => {
+    const decoder = createInputDecoder(handleInput);
+    start();
+
+    function start() {
+      input.setRawMode(true);
+      output.write('\x1b[?1049h\x1b[?25l\x1b[?1000h\x1b[?1006h\x1b[?2004h');
+      draw();
+      input.on('data', decoder.feed);
+      input.on('end', finish);
+      input.on('error', onError);
+      output.on('resize', draw);
+      process.on('SIGTERM', finish);
+      process.on('SIGHUP', finish);
+      process.on('SIGINT', finish);
+      input.resume();
+    }
+
+    function handleInput(event) {
       if (finished) return;
-      finished = true;
-      decoder.dispose();
-      input.off('data', decoder.feed);
-      input.off('end', finish);
-      input.off('error', onError);
-      output.off('resize', draw);
-      process.off('SIGTERM', finish);
-      process.off('SIGHUP', finish);
-      process.off('SIGINT', finish);
-      input.setRawMode(wasRaw);
-      input.pause();
-      output.write('\x1b[?1000l\x1b[?1006l\x1b[?2004l\x1b[0m\x1b[?25h\x1b[?1049l');
-      resolve();
-    };
-    const onError = () => finish();
-    const transmit = (key, label = key) => {
-      try {
-        send(pane, key, env);
-        if (closeAfterSend) { finish(); return; }
-        status = `Sent: ${label}`;
-      } catch (error) {
-        // Keep the message visible; never retry a possibly delivered key automatically.
-        status = `Failed: ${error.message}`;
+      if (composer.typing !== null) {
+        handleTypedKey(event);
+        return;
+      }
+      if (event.type === 'click') { act(hitTest(view, event.x, event.y)); return; }
+      const key = event.key;
+      if (composing && ['a', 's', 't', 'k'].includes(key)) {
+        act({ a: 'alt', s: 'shift', t: 'ctrl', k: 'type-key' }[key]);
+        return;
+      }
+      const action = /^[1-9]$/.test(key) ? Number(key) - 1 :
+        ({ q: 'close', '0': 'close', r: 'repeat', p: 'previous', n: 'next', c: 'compose' }[key] || key);
+      act(action);
+    }
+
+    function handleTypedKey(event) {
+      const key = event.type === 'key' ? event.key : hitTest(view, event.x, event.y);
+      if (key === 'close') { composer.typing = null; status = ''; }
+      else if (key === 'backspace') composer.typing = composer.typing.slice(0, -1);
+      else if (key === 'enter' || key === 'send') {
+        try {
+          setBase(composer, composer.typing);
+          composer.typing = null;
+          status = 'Ready. Send to transmit.';
+        } catch (error) { status = error.message; }
+      } else if (event.type === 'key' && /^[a-zA-Z0-9]$/.test(key) && composer.typing.length < 16) {
+        composer.typing += key;
       }
       draw();
-    };
-    const choose = (index) => {
-      const entry = entries[page * view.pageSize + index];
-      if (!entry || index >= view.pageSize) return;
-      selected = index;
-      if (composing) {
-        composer.base = entry.key;
-        status = '';
-        draw();
-      } else transmit(entry.key, entry.label);
-    };
-    const act = (action) => {
+    }
+
+    function act(action) {
       if (action === 'close') { finish(); return; }
       if (action === 'compose') {
-        composing = !composing;
-        entries = composing ? baseKeys : config.shortcuts;
-        composer.typing = null;
-        page = 0;
-        selected = 0;
-        status = '';
-        draw();
+        toggleComposer();
         return;
       }
       if (view.compact) return;
       if (typeof action === 'number') { choose(action); return; }
       if (composing) {
-        if (['ctrl', 'alt', 'shift'].includes(action)) {
-          composer[action] = !composer[action];
-          status = '';
-        }
-        if (action === 'type-key') {
-          composer.typing = '';
-          status = 'Type key name. Enter: set';
-        }
-        if (['up', 'down', 'left', 'right'].includes(action)) {
-          composer.base = action;
-          status = '';
-        }
+        updateComposer(action);
         if (action === 'send' || action === 'enter') {
           const key = composedKey(composer);
           if (key) { transmit(key); return; }
@@ -131,46 +119,82 @@ export function pickShortcut(input = process.stdin, output = process.stdout, env
         if (action === 'enter') { choose(selected); return; }
       }
       draw();
-    };
-    const decoder = createInputDecoder((event) => {
-      if (finished) return;
-      if (composer.typing !== null) {
-        const key = event.type === 'key' ? event.key : hitTest(view, event.x, event.y);
-        if (key === 'close') { composer.typing = null; status = ''; }
-        else if (key === 'backspace') composer.typing = composer.typing.slice(0, -1);
-        else if (key === 'enter' || key === 'send') {
-          try {
-            setBase(composer, composer.typing);
-            composer.typing = null;
-            status = 'Ready. Send to transmit.';
-          } catch (error) { status = error.message; }
-        } else if (event.type === 'key' && /^[a-zA-Z0-9]$/.test(key) && composer.typing.length < 16) {
-          composer.typing += key;
-        }
+    }
+
+    function toggleComposer() {
+      composing = !composing;
+      entries = composing ? baseKeys : config.shortcuts;
+      composer.typing = null;
+      page = 0;
+      selected = 0;
+      status = '';
+      draw();
+    }
+
+    function updateComposer(action) {
+      if (['ctrl', 'alt', 'shift'].includes(action)) {
+        composer[action] = !composer[action];
+        status = '';
+      }
+      if (action === 'type-key') {
+        composer.typing = '';
+        status = 'Type key name. Enter: set';
+      }
+      if (['up', 'down', 'left', 'right'].includes(action)) {
+        composer.base = action;
+        status = '';
+      }
+    }
+
+    function choose(index) {
+      const entry = entries[page * view.pageSize + index];
+      if (!entry || index >= view.pageSize) return;
+      selected = index;
+      if (composing) {
+        composer.base = entry.key;
+        status = '';
         draw();
-        return;
+      } else transmit(entry.key, entry.label);
+    }
+
+    function transmit(key, label = key) {
+      try {
+        send(pane, key, env);
+        if (closeAfterSend) { finish(); return; }
+        status = `Sent: ${label}`;
+      } catch (error) {
+        // Keep the message visible; never retry a possibly delivered key automatically.
+        status = `Failed: ${error.message}`;
       }
-      if (event.type === 'click') { act(hitTest(view, event.x, event.y)); return; }
-      const key = event.key;
-      if (composing && ['a', 's', 't', 'k'].includes(key)) {
-        act({ a: 'alt', s: 'shift', t: 'ctrl', k: 'type-key' }[key]);
-        return;
-      }
-      const action = /^[1-9]$/.test(key) ? Number(key) - 1 :
-        ({ q: 'close', '0': 'close', r: 'repeat', p: 'previous', n: 'next', c: 'compose' }[key] || key);
-      act(action);
-    });
-    input.setRawMode(true);
-    output.write('\x1b[?1049h\x1b[?25l\x1b[?1000h\x1b[?1006h\x1b[?2004h');
-    draw();
-    input.on('data', decoder.feed);
-    input.on('end', finish);
-    input.on('error', onError);
-    output.on('resize', draw);
-    process.on('SIGTERM', finish);
-    process.on('SIGHUP', finish);
-    process.on('SIGINT', finish);
-    input.resume();
+      draw();
+    }
+
+    function draw() {
+      view = layout(output.columns || 40, output.rows || 22, entries.length, page, composing);
+      page = view.page;
+      selected = Math.min(selected, Math.max(0, entries.length - page * view.pageSize - 1), Math.max(0, view.pageSize - 1));
+      output.write(render(view, entries, pane, selected, closeAfterSend, status,
+        composing ? { ...composer, preview: composedKey(composer) } : null));
+    }
+
+    function onError() { finish(); }
+
+    function finish() {
+      if (finished) return;
+      finished = true;
+      decoder.dispose();
+      input.off('data', decoder.feed);
+      input.off('end', finish);
+      input.off('error', onError);
+      output.off('resize', draw);
+      process.off('SIGTERM', finish);
+      process.off('SIGHUP', finish);
+      process.off('SIGINT', finish);
+      input.setRawMode(wasRaw);
+      input.pause();
+      output.write('\x1b[?1000l\x1b[?1006l\x1b[?2004l\x1b[0m\x1b[?25h\x1b[?1049l');
+      resolve();
+    }
   });
 }
 

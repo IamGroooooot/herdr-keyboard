@@ -130,6 +130,10 @@ herdr plugin config-dir herdr-keyboard
 
 ## 개발과 검증
 
+- 실행 흐름: `picker.mjs`
+- 입력과 화면: `input.mjs`, `view.mjs`
+- 키 조합, 설정, 전송: `composer.mjs`, `shortcuts.mjs`, `keyboard.mjs`
+
 ```sh
 npm test
 ```

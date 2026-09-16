@@ -26,12 +26,7 @@ export function validateConfig(config) {
   if (!Array.isArray(entries) || entries.length < 1 || entries.length > 90) throw new Error('Provide between 1 and 90 shortcuts.');
   return {
     closeAfterSend: config.closeAfterSend ?? true,
-    shortcuts: entries.map((entry, index) => {
-      if (!entry || typeof entry.label !== 'string' || !entry.label.trim() || entry.label.length > 60 || /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u.test(entry.label)) {
-        throw new Error(`Shortcut ${index + 1}: label must be 1–60 characters without control characters.`);
-      }
-      return { label: entry.label.trim(), key: normalizeKey(entry.key) };
-    }),
+    shortcuts: entries.map(validateShortcut),
   };
 }
 
@@ -49,6 +44,13 @@ export function normalizeKey(value) {
     throw new Error(`Unsupported modifiers: ${value}`);
   }
   return [...['ctrl', 'alt', 'shift'].filter((part) => parts.includes(part)), base].join('+');
+}
+
+function validateShortcut(entry, index) {
+  if (!entry || typeof entry.label !== 'string' || !entry.label.trim() || entry.label.length > 60 || /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u.test(entry.label)) {
+    throw new Error(`Shortcut ${index + 1}: label must be 1–60 characters without control characters.`);
+  }
+  return { label: entry.label.trim(), key: normalizeKey(entry.key) };
 }
 
 export const shortcuts = [

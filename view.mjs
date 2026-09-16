@@ -4,7 +4,12 @@ export function render(view, entries, pane, selected, closeAfterSend, status = '
   if (view.compact) return output + at(1, 1, `Need 25x${view.composing ? 14 : 10}. c:back q:exit`);
   output += at(2, 1, `Keyboard > ${pane}`);
   output += at(2, 2, `[c] ${composer ? 'Shortcuts' : 'Compose'}   ${view.page + 1}/${view.pages}`);
-  if (composer) {
+  if (composer) renderComposer();
+  renderButtons();
+  renderFooter();
+  return output;
+
+  function renderComposer() {
     for (const [index, modifier] of ['ctrl', 'alt', 'shift'].entries()) {
       const hotkey = { ctrl: 't', alt: 'a', shift: 's' }[modifier];
       const label = { ctrl: 'Ctrl', alt: 'Alt', shift: 'Shift' }[modifier];
@@ -13,19 +18,24 @@ export function render(view, entries, pane, selected, closeAfterSend, status = '
     output += at(1, 5, composer.typing !== null ? `Key: ${composer.typing}_` : (composer.preview || 'Choose modifiers + key'));
     output += at(2, view.height - 3, '[Enter] Send  [k] Key');
   }
-  for (const button of view.buttons) {
-    if (typeof button.action !== 'number') continue;
-    const index = button.action;
-    const entry = entries[view.page * view.pageSize + index];
-    const active = composer ? composer.base === entry.key : selected === index;
-    output += `\x1b[${button.y};${button.x}H${active ? '\x1b[7m' : '\x1b[100m'}`;
-    output += fit(` ${index + 1} ${entry.label}`, button.width) + '\x1b[0m';
-    output += `\x1b[${button.y + 1};${button.x}H\x1b[90m${fit(`   ${entry.key}`, button.width)}\x1b[0m`;
+
+  function renderButtons() {
+    for (const button of view.buttons) {
+      if (typeof button.action !== 'number') continue;
+      const index = button.action;
+      const entry = entries[view.page * view.pageSize + index];
+      const active = composer ? composer.base === entry.key : selected === index;
+      output += `\x1b[${button.y};${button.x}H${active ? '\x1b[7m' : '\x1b[100m'}`;
+      output += fit(` ${index + 1} ${entry.label}`, button.width) + '\x1b[0m';
+      output += `\x1b[${button.y + 1};${button.x}H\x1b[90m${fit(`   ${entry.key}`, button.width)}\x1b[0m`;
+    }
   }
-  output += at(2, view.height - 4, status || (composer ? 'Select key, then Send.' : 'Tap / 1-9 to send.'));
-  output += at(2, view.height - (composer ? 5 : 3), '[p] Prev  [n] Next');
-  output += at(2, view.height - 1, `[r] Keep:${closeAfterSend ? 'OFF' : 'ON '}   [0] Exit`);
-  return output;
+
+  function renderFooter() {
+    output += at(2, view.height - 4, status || (composer ? 'Select key, then Send.' : 'Tap / 1-9 to send.'));
+    output += at(2, view.height - (composer ? 5 : 3), '[p] Prev  [n] Next');
+    output += at(2, view.height - 1, `[r] Keep:${closeAfterSend ? 'OFF' : 'ON '}   [0] Exit`);
+  }
 }
 
 export function layout(columns, rows, total, page = 0, composing = false) {
