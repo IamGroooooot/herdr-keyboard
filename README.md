@@ -6,17 +6,29 @@
 
 ## 설치
 
-Herdr 0.9.0 이상과 Node.js 20 이상이 필요합니다.
+Herdr 0.9.0 이상, Node.js 20 이상, npm, Git이 필요합니다.
 
-저장소를 내려받은 뒤 해당 디렉터리에서 의존성을 설치하고 빌드합니다.
+### GitHub에서 설치
 
 ```sh
-npm ci
-npm run build
-herdr plugin link /path/to/herdr-keyboard
+herdr plugin install IamGroooooot/herdr-keyboard
 ```
 
-`plugin link`는 빌드를 실행하지 않습니다. 코드를 수정하거나 업데이트한 뒤에는 `npm run build`를 다시 실행하세요. GitHub의 `plugin install`로 설치할 때는 manifest에 등록된 설치·빌드 명령이 실행됩니다.
+설치를 승인하면 저장소를 내려받고 의존성 설치와 빌드를 실행합니다. GitHub로 설치한 플러그인은 같은 명령을 다시 실행해 업데이트합니다.
+
+### 로컬 개발용 설치
+
+코드를 수정하며 사용할 때는 저장소를 내려받아 직접 연결합니다.
+
+```sh
+git clone https://github.com/IamGroooooot/herdr-keyboard.git
+cd herdr-keyboard
+npm ci
+npm run build
+herdr plugin link .
+```
+
+`plugin link`는 빌드를 실행하지 않습니다. 코드를 수정하거나 업데이트한 뒤에는 `npm run build`를 다시 실행하세요.
 
 ## 실행
 
