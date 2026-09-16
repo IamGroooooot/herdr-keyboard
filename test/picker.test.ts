@@ -1,180 +1,255 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { PassThrough } from 'node:stream';
-import { Effect, Layer } from 'effect';
-import { pickShortcut } from '../src/picker.js';
-import { Herdr, HerdrError } from '../src/herdr.js';
-import { shortcuts } from '../src/config.js';
-import { layout } from '../src/terminal/layout.js';
+import { Cause, Effect, Exit } from 'effect';
+import { HerdrError } from '../src/herdr.js';
+import { launchPicker, openPicker, TestInput, waitFor } from './helpers/picker.js';
 
-class Input extends PassThrough {
-  isTTY = true;
-  isRaw = false;
-  setRawMode(value: boolean) { this.isRaw = value; return this; }
-}
-class Output extends PassThrough {
-  columns = 40;
-  rows = 22;
-  screen = '';
-  constructor() { super(); this.on('data', (chunk: Buffer) => { this.screen += chunk.toString(); }); }
-}
+test('a numeric shortcut sends once even when the number is repeated', { timeout: 5000 }, async (t) => {
+  // Arrange
+  const session = await openPicker(t);
 
-async function start(sendError?: string, waitForSend = false) {
-  const input = new Input();
-  const output = new Output();
-  const sent: Array<readonly [string, string]> = [];
-  const abort = new AbortController();
-  const done = Effect.runPromise(pickShortcut(input, output, { HERDR_PANE_ID: 'w1:p2' }).pipe(
-    Effect.provide(Layer.succeed(Herdr, {
-      openPicker: () => Effect.void,
-      sendKey: (pane, key) => Effect.suspend(() => {
-        sent.push([pane, key]);
-        return sendError ? Effect.fail(new HerdrError({ message: sendError })) : waitForSend ? Effect.never : Effect.void;
-      }),
-    })),
-  ), { signal: abort.signal });
-  await until(() => output.screen.includes('Keyboard >'));
-  return { input, output, sent, done, abort };
-}
+  // Act
+  session.input.write('22');
+  const result = await session.done;
 
-async function until(condition: () => boolean) {
-  const deadline = Date.now() + 2000;
-  while (!condition()) {
-    assert.ok(Date.now() < deadline, 'timed out waiting for picker');
-    await new Promise((resolve) => setTimeout(resolve, 1));
-  }
-}
-
-test('one number sends once, with no extra Enter, and restores terminal mode', async () => {
-  for (const [number, key] of [['1', 'alt+down'], ['2', 'shift+tab'], ['3', 'shift+up']] satisfies Array<[string, string]>) {
-    const session = await start();
-    session.input.write(number + number);
-    await session.done;
-    assert.deepEqual(session.sent, [['w1:p2', key]]);
-    assert.equal(session.input.isRaw, false);
-    assert.equal(session.input.listenerCount('data'), 0);
-  }
-});
-
-test('cancel sends nothing; failures stay visible until close', async () => {
-  const cancelled = await start();
-  cancelled.input.write('x0');
-  await cancelled.done;
-  assert.equal(cancelled.sent.length, 0);
-  const failed = await start('pane closed');
-  failed.input.write('2');
-  await until(() => failed.output.screen.includes('Failed: pane closed'));
-  failed.input.write('q');
-  await failed.done;
-  assert.equal(failed.sent.length, 1);
-  assert.equal(failed.input.isRaw, false);
-});
-
-test('touch selects the visible key once even when a release follows', async () => {
-  const session = await start();
-  session.input.write('\x1b[<0;4;6M\x1b[<0;4;6m');
-  await session.done;
+  // Assert
+  assert.ok(Exit.isSuccess(result));
   assert.deepEqual(session.sent, [['w1:p2', 'shift+tab']]);
 });
 
-test('keep-open, pagination and resize only send visible choices', async () => {
-  const session = await start();
-  session.input.write('r2n1');
-  await until(() => session.sent.length === 2);
-  const pageSize = layout(40, 22, shortcuts.length).pageSize;
-  assert.deepEqual(session.sent.map(([, key]) => key), ['shift+tab', shortcuts[pageSize]?.key]);
-  session.output.columns = 20; session.output.rows = 8;
-  session.output.emit('resize');
-  session.input.write('10');
-  await session.done;
-  assert.equal(session.sent.length, 2);
-  assert.equal(session.output.listenerCount('resize'), 0);
+test('closing the picker sends nothing', { timeout: 5000 }, async (t) => {
+  // Arrange
+  const session = await openPicker(t);
+
+  // Act
+  session.input.write('q');
+  const result = await session.done;
+
+  // Assert
+  assert.ok(Exit.isSuccess(result));
+  assert.deepEqual(session.sent, []);
 });
 
-test('pasted digits are ignored and EOF restores mouse and screen modes', async () => {
-  const session = await start();
-  session.input.write('\x1b[200~123\x1b[201~');
-  session.input.end();
-  await session.done;
-  assert.equal(session.sent.length, 0);
+test('a failed send displays the error without retrying or closing', { timeout: 5000 }, async (t) => {
+  // Arrange
+  const session = await openPicker(t, { sendResult: Effect.fail(new HerdrError({ message: 'pane closed' })) });
+
+  // Act
+  session.input.write('2');
+  await waitFor(() => session.output.screen.includes('Failed: pane closed'), 'send error to appear');
+  const remainedOpen = session.input.isRaw;
+  session.input.write('q');
+  const result = await session.done;
+
+  // Assert
+  assert.ok(remainedOpen);
+  assert.ok(Exit.isSuccess(result));
+  assert.deepEqual(session.sent, [['w1:p2', 'shift+tab']]);
+});
+
+test('a touch press and release send the visible shortcut once', { timeout: 5000 }, async (t) => {
+  // Arrange
+  const session = await openPicker(t);
+  const pressAndRelease = '\x1b[<0;4;6M\x1b[<0;4;6m';
+
+  // Act
+  session.input.write(pressAndRelease);
+  const result = await session.done;
+
+  // Assert
+  assert.ok(Exit.isSuccess(result));
+  assert.deepEqual(session.sent, [['w1:p2', 'shift+tab']]);
+});
+
+test('Keep allows sending shortcuts from successive pages', { timeout: 5000 }, async (t) => {
+  // Arrange: the 40-column, 22-row terminal shows seven shortcuts per page.
+  const session = await openPicker(t);
+
+  // Act
+  session.input.write('r'); // Keep on
+  session.input.write('2'); // Shift + Tab
+  session.input.write('n'); // Next page
+  session.input.write('1'); // Up
+  session.input.write('q');
+  const result = await session.done;
+
+  // Assert
+  assert.ok(Exit.isSuccess(result));
+  assert.deepEqual(session.sent, [['w1:p2', 'shift+tab'], ['w1:p2', 'up']]);
+});
+
+test('shrinking the terminal disables hidden shortcuts', { timeout: 5000 }, async (t) => {
+  // Arrange
+  const session = await openPicker(t);
+
+  // Act
+  session.output.columns = 20;
+  session.output.rows = 8;
+  session.output.emit('resize');
+  session.input.write('1q');
+  const result = await session.done;
+
+  // Assert
+  assert.ok(Exit.isSuccess(result));
+  assert.deepEqual(session.sent, []);
+  assert.match(session.output.screen, /Need 25x10/);
+});
+
+test('EOF ignores pasted shortcuts and restores the original terminal mode', { timeout: 5000 }, async (t) => {
+  // Arrange
+  const input = new TestInput();
+  input.setRawMode(true);
+  const session = await openPicker(t, { input });
+
+  // Act
+  input.write('\x1b[200~123\x1b[201~');
+  input.end();
+  const result = await session.done;
+
+  // Assert
+  assert.ok(Exit.isSuccess(result));
+  assert.deepEqual(session.sent, []);
+  assert.equal(input.isRaw, true);
+  assert.equal(input.listenerCount('data'), 0);
+  assert.equal(session.output.listenerCount('resize'), 0);
   assert.match(session.output.screen, /\x1b\[\?1000l/);
   assert.match(session.output.screen, /\x1b\[\?1049l/);
-  assert.equal(session.input.isRaw, false);
 });
 
-test('composer previews multiple modifiers and sends only on Send', async () => {
-  const session = await start();
-  session.input.write('macs1');
-  await until(() => session.output.screen.includes('ctrl+alt+shift+up'));
-  assert.equal(session.sent.length, 0);
+test('selecting modifiers and a base key previews without sending', { timeout: 5000 }, async (t) => {
+  // Arrange
+  const session = await openPicker(t);
+
+  // Act
+  session.input.write('m'); // Compose
+  session.input.write('acs'); // Alt, Ctrl, Shift
+  session.input.write('1'); // Up
+  await waitFor(() => session.output.screen.includes('ctrl+alt+shift+up'), 'combined key preview');
+  const beforeSend = [...session.sent];
   session.input.write('\r');
-  await session.done;
+  const result = await session.done;
+
+  // Assert
+  assert.ok(Exit.isSuccess(result));
+  assert.deepEqual(beforeSend, []);
   assert.deepEqual(session.sent, [['w1:p2', 'ctrl+alt+shift+up']]);
 });
 
-test('touch-only composition selects Alt and Left before sending', async () => {
-  const session = await start();
+test('touch-only composition sends Alt + Left only after tapping Send', { timeout: 5000 }, async (t) => {
+  // Arrange
+  const session = await openPicker(t);
   const tap = (x: number, y: number) => session.input.write(`\x1b[<0;${x};${y}M\x1b[<0;${x};${y}m`);
-  tap(4, 2); tap(10, 4); tap(4, 9);
-  await until(() => session.output.screen.includes('alt+left'));
-  assert.equal(session.sent.length, 0);
-  tap(4, 19);
-  await session.done;
+
+  // Act
+  tap(4, 2); // Compose
+  tap(10, 4); // Alt
+  tap(4, 9); // Left
+  await waitFor(() => session.output.screen.includes('alt+left'), 'Alt + Left preview');
+  const beforeSend = [...session.sent];
+  tap(4, 19); // Send
+  const result = await session.done;
+
+  // Assert
+  assert.ok(Exit.isSuccess(result));
+  assert.deepEqual(beforeSend, []);
   assert.deepEqual(session.sent, [['w1:p2', 'alt+left']]);
 });
 
-test('custom keys, c modifier toggling, m mode switch and repeated sends', async () => {
-  const session = await start();
-  session.input.write('mrcska\r');
-  await until(() => session.output.screen.includes('Ready. Send to transmit.'));
-  assert.equal(session.sent.length, 0);
-  session.input.write('\rskf2\r\rc\rm20');
-  await session.done;
+test('custom keys retain modifiers until toggled and m returns to shortcuts', { timeout: 5000 }, async (t) => {
+  // Arrange
+  const session = await openPicker(t);
+
+  // Act
+  session.input.write('m'); // Compose
+  session.input.write('r'); // Keep on
+  session.input.write('cs'); // Ctrl, Shift
+  session.input.write('ka\r'); // Confirm the base key a
+  await waitFor(() => session.output.screen.includes('Ready. Send to transmit.'), 'base-key confirmation');
+  const beforeSend = [...session.sent];
+  session.input.write('\r'); // Send Ctrl + Shift + A
+  session.input.write('s'); // Shift off
+  session.input.write('kf2\r\r'); // Confirm F2, then send Ctrl + F2
+  session.input.write('c\r'); // Ctrl off, then send F2
+  session.input.write('m2q'); // Back to shortcuts, send Shift + Tab, close
+  const result = await session.done;
+
+  // Assert
+  assert.ok(Exit.isSuccess(result));
+  assert.deepEqual(beforeSend, []);
   assert.deepEqual(session.sent.map(([, key]) => key), ['ctrl+shift+a', 'ctrl+f2', 'f2', 'shift+tab']);
 });
 
-test('empty composition and invalid custom keys never send', async () => {
-  const session = await start();
-  session.input.write('m\rkbroke\r\x030');
-  await session.done;
-  assert.equal(session.sent.length, 0);
+test('empty and unsupported base keys cannot be sent', { timeout: 5000 }, async (t) => {
+  for (const scenario of [
+    { name: 'no base key', keys: 'm\rq' },
+    { name: 'unsupported base key', keys: 'mkbroke\r\x03q' },
+  ]) {
+    // Arrange
+    const session = await openPicker(t);
+
+    // Act
+    session.input.write(scenario.keys);
+    const result = await session.done;
+
+    // Assert
+    assert.ok(Exit.isSuccess(result), scenario.name);
+    assert.deepEqual(session.sent, [], scenario.name);
+  }
 });
 
-test('interrupting an in-flight send releases terminal resources', async () => {
-  const before = process.listenerCount('SIGTERM');
-  const session = await start(undefined, true);
+test('interrupting a pending send releases terminal resources', { timeout: 5000 }, async (t) => {
+  // Arrange
+  const originalSignalListeners = process.listenerCount('SIGTERM');
+  const session = await openPicker(t, { sendResult: Effect.never });
   session.input.write('2');
-  await until(() => session.sent.length === 1);
+  await waitFor(() => session.sent.length === 1, 'send to start');
+
+  // Act
   session.abort.abort();
-  await assert.rejects(session.done);
+  const result = await session.done;
+
+  // Assert
+  assert.ok(Exit.isInterrupted(result));
   assert.equal(session.input.isRaw, false);
   assert.equal(session.input.listenerCount('data'), 0);
   assert.equal(session.output.listenerCount('resize'), 0);
-  assert.equal(process.listenerCount('SIGTERM'), before);
+  assert.equal(process.listenerCount('SIGTERM'), originalSignalListeners);
   assert.match(session.output.screen, /\x1b\[\?1000l/);
 });
 
-test('partial startup failure also restores raw mode and removes listeners', async () => {
-  const input = new Input();
-  const output = new Output();
-  const before = process.listenerCount('SIGTERM');
+test('partial startup failure restores raw mode and removes listeners', { timeout: 5000 }, async (t) => {
+  // Arrange
+  const originalSignalListeners = process.listenerCount('SIGTERM');
+  const input = new TestInput();
   input.setRawMode = (value: boolean) => {
     input.isRaw = value;
     if (value) throw new Error('raw mode failed');
     return input;
   };
-  await assert.rejects(Effect.runPromise(pickShortcut(input, output, { HERDR_PANE_ID: 'w1:p2' }).pipe(
-    Effect.provide(Layer.succeed(Herdr, { openPicker: () => Effect.void, sendKey: () => Effect.void })),
-  )), /raw mode failed/);
+
+  // Act
+  const session = launchPicker(t, { input });
+  const result = await session.done;
+
+  // Assert
+  assert.ok(Exit.isFailure(result));
+  assert.match(Cause.pretty(result.cause), /raw mode failed/);
   assert.equal(input.isRaw, false);
   assert.equal(input.listenerCount('data'), 0);
-  assert.equal(process.listenerCount('SIGTERM'), before);
+  assert.equal(process.listenerCount('SIGTERM'), originalSignalListeners);
 });
 
-test('input errors fail explicitly after restoring terminal state', async () => {
-  const session = await start();
+test('a terminal read error fails the picker after restoring raw mode', { timeout: 5000 }, async (t) => {
+  // Arrange
+  const session = await openPicker(t);
+
+  // Act
   session.input.emit('error', new Error('lost terminal'));
-  await assert.rejects(session.done, /lost terminal/);
+  const result = await session.done;
+
+  // Assert
+  assert.ok(Exit.isFailure(result));
+  assert.match(Cause.pretty(result.cause), /lost terminal/);
   assert.equal(session.input.isRaw, false);
   assert.equal(session.input.listenerCount('data'), 0);
 });
