@@ -6,6 +6,20 @@ description = "Send hard-to-type key combinations from a mobile keyboard"
 platforms = ["linux", "macos", "windows"]
 
 [[actions]]
+id = "open"
+title = "Keyboard: Choose shortcut"
+contexts = ["pane"]
+command = ["node", "picker.mjs", "--open"]
+
+[[panes]]
+id = "picker"
+title = "Mobile Keyboard"
+placement = "popup"
+width = "90%"
+height = 12
+command = ["node", "picker.mjs"]
+
+[[actions]]
 id = "opt-down"
 title = "Keyboard: Opt + Down"
 contexts = ["pane"]
