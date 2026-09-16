@@ -20,6 +20,10 @@ herdr plugin install IamGroooooot/herdr-keyboard
 
 Approve the installation. Herdr downloads the repository, installs dependencies, and builds the plugin. To update a GitHub installation, run the same command again.
 
+Run installation from a shell where `node` and `npm` work. The build records the real Node executable, so the plugin can run even when Herdr's server PATH differs from your nvm, mise, or other shell setup. It does not change global settings.
+
+If that Node installation is removed, the launcher searches the server PATH for a working Node 24 or later. If none is available, repeat the installation from a working Node shell. For a local link, run `npm run build` to refresh the recorded path.
+
 ## Use
 
 Select the target terminal. Run **Keyboard: Choose shortcut** from Herdr's actions, or use this command:
@@ -112,5 +116,14 @@ herdr plugin link .
 ```
 
 After editing the code, run `npm run check`. `plugin link` does not build automatically.
+
+Code responsibilities:
+
+- `domain/`: key validation and composition, independent of Herdr and terminal I/O.
+- `picker-actions.ts`, `picker-state.ts`: UI actions and state transitions. `picker.ts` executes sends and screen updates.
+- `herdr.ts`: service contract and pane IDs. `herdr-client.ts` executes external commands; `target-pane.ts` resolves the destination.
+- `terminal/`: input decoding, layout, rendering, and terminal resource management. `scripts/` generates the launcher during installation.
+
+Errors belong to the key, configuration, target pane, Herdr command, or terminal boundary. External failures preserve their `cause`; failed sends remain visible in the picker. Tests use Arrange–Act–Assert and prefer executable behavior over generated-source assertions.
 
 </details>

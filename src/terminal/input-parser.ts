@@ -1,4 +1,4 @@
-import type { InputEvent } from '../domain/actions.js';
+import type { InputEvent } from '../picker-actions.js';
 
 type SkippedInput = 'paste' | 'osc' | 'control-string' | 'csi';
 export type InputState =

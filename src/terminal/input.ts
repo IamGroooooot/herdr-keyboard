@@ -1,4 +1,4 @@
-import type { InputEvent } from '../domain/actions.js';
+import type { InputEvent } from '../picker-actions.js';
 import { parseInput } from './input-parser.js';
 import type { InputState } from './input-parser.js';
 

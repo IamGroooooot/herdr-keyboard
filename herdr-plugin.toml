@@ -1,6 +1,6 @@
 id = "herdr-keyboard"
 name = "Mobile Keyboard"
-version = "0.4.6"
+version = "0.4.7"
 min_herdr_version = "0.9.0"
 description = "Send hard-to-type key combinations from a mobile keyboard"
 platforms = ["linux", "macos", "windows"]
@@ -15,30 +15,41 @@ command = ["npm", "run", "build"]
 id = "open"
 title = "Keyboard: Choose shortcut"
 contexts = ["pane"]
-command = ["node", "dist/cli.js", "open"]
+command = ["./dist/launch.cmd", "open"]
 
 [[panes]]
 id = "picker"
 title = "Mobile Keyboard"
+platforms = ["linux", "macos"]
 placement = "popup"
 width = "90%"
 height = "80%"
-command = ["node", "dist/cli.js"]
+command = ["./dist/launch.cmd"]
+
+# Windows PTYs need an explicit command interpreter for batch files.
+[[panes]]
+id = "picker-windows"
+title = "Mobile Keyboard"
+platforms = ["windows"]
+placement = "popup"
+width = "90%"
+height = "80%"
+command = ["cmd.exe", "/d", "/c", ".\\dist\\launch.cmd"]
 
 [[actions]]
 id = "opt-up"
 title = "Keyboard: Alt + Up"
 contexts = ["pane"]
-command = ["node", "dist/cli.js", "send", "alt+up"]
+command = ["./dist/launch.cmd", "send", "alt+up"]
 
 [[actions]]
 id = "shift-tab"
 title = "Keyboard: Shift + Tab"
 contexts = ["pane"]
-command = ["node", "dist/cli.js", "send", "shift+tab"]
+command = ["./dist/launch.cmd", "send", "shift+tab"]
 
 [[actions]]
 id = "shift-up"
 title = "Keyboard: Shift + Up"
 contexts = ["pane"]
-command = ["node", "dist/cli.js", "send", "shift+up"]
+command = ["./dist/launch.cmd", "send", "shift+up"]

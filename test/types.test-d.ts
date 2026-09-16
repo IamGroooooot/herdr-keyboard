@@ -1,8 +1,9 @@
 import { Herdr } from '../src/herdr.js';
 import { Effect } from 'effect';
 import { pickShortcut } from '../src/picker.js';
-import { BaseKey, KeyChord, PaneId } from '../src/domain/keys.js';
-import type { InputEvent, PickerMode } from '../src/domain/actions.js';
+import { BaseKey, KeyChord } from '../src/domain/keys.js';
+import { PaneId } from '../src/herdr.js';
+import type { InputEvent, PickerMode } from '../src/picker-actions.js';
 import type { Composer } from '../src/domain/composer.js';
 import { baseKeys } from '../src/domain/composer.js';
 import type { KeyboardConfig } from '../src/config.js';

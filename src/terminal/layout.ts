@@ -1,4 +1,4 @@
-import type { Action } from '../domain/actions.js';
+import type { PickerAction } from '../picker-actions.js';
 import { Modifier } from '../domain/keys.js';
 import type { Direction } from '../domain/keys.js';
 
@@ -7,9 +7,9 @@ export interface Button {
   readonly y: number;
   readonly width: number;
   readonly height: number;
-  readonly action: Exclude<Action, Direction | 'enter'>;
+  readonly action: Exclude<PickerAction, Direction | 'enter'>;
 }
-export interface View {
+export interface PickerLayout {
   readonly width: number;
   readonly height: number;
   readonly composing: boolean;
@@ -20,7 +20,7 @@ export interface View {
   readonly buttons: ReadonlyArray<Button>;
 }
 
-export function layout(columns: number, rows: number, total: number, page = 0, composing = false): View {
+export function layout(columns: number, rows: number, total: number, page = 0, composing = false): PickerLayout {
   const width = Math.max(1, columns - 1);
   const height = Math.max(1, rows);
   const minHeight = composing ? 14 : 10;
@@ -43,11 +43,11 @@ export function layout(columns: number, rows: number, total: number, page = 0, c
   };
 }
 
-export function hitTest(view: View, x: number, y: number): Action | undefined {
+export function hitTest(view: PickerLayout, x: number, y: number): PickerAction | undefined {
   return view.buttons.find((button) => x >= button.x && x < button.x + button.width && y >= button.y && y < button.y + button.height)?.action;
 }
 
-export function moveSelection(view: View, selected: number, direction: Direction): number {
+export function moveSelection(view: PickerLayout, selected: number, direction: Direction): number {
   const current = view.buttons.find((button) => button.action === selected);
   if (!current) return selected;
   const distance = (button: Button) => Math.abs(button.x - current.x) + Math.abs(button.y - current.y);
@@ -69,7 +69,7 @@ function controlButtons(height: number, composing: boolean): ReadonlyArray<Butto
     { x: 2, y: 2, width: 13, height: 1, action: 'compose' },
     { x: 2, y: footerRow, width: 8, height: 1, action: 'previous' },
     { x: 12, y: footerRow, width: 8, height: 1, action: 'next' },
-    { x: 2, y: height - 1, width: 13, height: 1, action: 'repeat' },
+    { x: 2, y: height - 1, width: 13, height: 1, action: 'toggle-keep-open' },
     { x: 17, y: height - 1, width: 8, height: 1, action: 'close' },
     ...(composing ? composerButtons(height) : []),
   ];

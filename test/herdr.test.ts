@@ -1,27 +1,44 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Effect, Either } from 'effect';
-import { Herdr, executeCommand, herdrLayer, targetPane } from '../src/herdr.js';
-import type { Environment } from '../src/config.js';
+import { Herdr } from '../src/herdr.js';
+import { executeCommand, herdrLayer } from '../src/herdr-client.js';
+import { resolveTargetPane } from '../src/target-pane.js';
+import type { Environment } from '../src/environment.js';
 
-test('opening a popup omits the pane placement target and preserves the keyboard destination', async () => {
+test('popup commands select the platform entrypoint and preserve the keyboard destination', async () => {
   // Arrange
-  const env = { HERDR_KEYBOARD_TARGET: 'w1:p2', HERDR_PLUGIN_CONTEXT_JSON: '{"focused_pane_id":"w1:p3"}' };
-  const commands: Array<{ binary: string; args: ReadonlyArray<string> }> = [];
-  const layer = herdrLayer(env, (binary, args) => Effect.sync(() => { commands.push({ binary, args }); }));
+  const environment = {
+    HERDR_BIN_PATH: '/custom/herdr', HERDR_KEYBOARD_TARGET: 'w1:p2',
+    HERDR_PLUGIN_CONTEXT_JSON: '{"focused_pane_id":"w1:p3"}',
+  };
+  const cases = [
+    { platform: 'linux', entrypoint: 'picker' },
+    { platform: 'darwin', entrypoint: 'picker' },
+    { platform: 'win32', entrypoint: 'picker-windows' },
+  ] as const;
 
   // Act
-  await Effect.runPromise(Effect.gen(function* () {
-    const pane = yield* targetPane(env);
-    const herdr = yield* Herdr;
-    yield* herdr.openPicker(pane);
-  }).pipe(Effect.provide(layer)));
+  const results = await Promise.all(cases.map(async ({ platform, entrypoint }) => {
+    const commands: Array<{ binary: string; args: ReadonlyArray<string> }> = [];
+    const layer = herdrLayer({ environment, platform,
+      execute: (binary, args) => Effect.sync(() => { commands.push({ binary, args }); }),
+    });
+    await Effect.runPromise(Effect.gen(function* () {
+      const pane = yield* resolveTargetPane(environment);
+      const herdr = yield* Herdr;
+      yield* herdr.openPicker(pane);
+    }).pipe(Effect.provide(layer)));
+    return { platform, entrypoint, commands };
+  }));
 
   // Assert
-  assert.deepEqual(commands, [{ binary: 'herdr', args: [
-    'plugin', 'pane', 'open', '--plugin', 'herdr-keyboard', '--entrypoint', 'picker',
-    '--env', 'HERDR_KEYBOARD_TARGET=w1:p2',
-  ] }]);
+  for (const { platform, entrypoint, commands } of results) {
+    assert.deepEqual(commands, [{ binary: '/custom/herdr', args: [
+      'plugin', 'pane', 'open', '--plugin', 'herdr-keyboard', '--entrypoint', entrypoint,
+      '--env', 'HERDR_KEYBOARD_TARGET=w1:p2',
+    ] }], platform);
+  }
 });
 
 test('target resolution falls back from focused pane to the current pane', async () => {
@@ -32,7 +49,7 @@ test('target resolution falls back from focused pane to the current pane', async
   ];
 
   // Act
-  const panes = await Promise.all(environments.map((env) => Effect.runPromise(targetPane(env))));
+  const panes = await Promise.all(environments.map((env) => Effect.runPromise(resolveTargetPane(env))));
 
   // Assert
   assert.deepEqual(panes, ['w1:p3', 'w1:p4']);
@@ -45,7 +62,7 @@ test('missing targets and invalid context return TargetError', async () => {
   ];
 
   // Act
-  const results = await Promise.all(environments.map((env) => Effect.runPromise(Effect.either(targetPane(env)))));
+  const results = await Promise.all(environments.map((env) => Effect.runPromise(Effect.either(resolveTargetPane(env)))));
 
   // Assert
   for (const [index, result] of results.entries()) {
@@ -54,13 +71,17 @@ test('missing targets and invalid context return TargetError', async () => {
   }
 });
 
-test('the process adapter distinguishes success, command failure and missing executable', async () => {
+test('the process adapter preserves failure causes and distinguishes launch, timeout and command errors', async () => {
   // Arrange
   const cases = [
-    { name: 'success', binary: process.execPath, args: ['-e', 'process.exit(0)'], expected: undefined },
+    { name: 'success', binary: process.execPath, args: ['-e', 'process.exit(0)'], expected: undefined, reason: undefined },
     { name: 'stderr failure', binary: process.execPath,
-      args: ['-e', 'process.stderr.write("pane gone");process.exit(1)'], expected: /pane gone/ },
-    { name: 'missing executable', binary: '/does-not-exist/herdr', args: [], expected: /ENOENT/ },
+      args: ['-e', 'process.stderr.write("pane gone");process.exit(1)'], expected: /pane gone/, reason: 'failed' },
+    { name: 'missing executable', binary: '/does-not-exist/herdr', args: [], expected: /ENOENT/, reason: 'unavailable' },
+    { name: 'timeout', binary: process.execPath, args: ['-e', 'setTimeout(() => {}, 30000)'],
+      expected: /timed out/, reason: 'timeout' },
+    { name: 'output limit', binary: process.execPath, args: ['-e', 'process.stdout.write("x".repeat(100000))'],
+      expected: /maxBuffer/, reason: 'failed' },
   ];
 
   // Act
@@ -69,12 +90,14 @@ test('the process adapter distinguishes success, command failure and missing exe
   })));
 
   // Assert
-  for (const { name, expected, result } of results) {
+  for (const { name, expected, reason, result } of results) {
     if (expected === undefined) {
       assert.ok(Either.isRight(result), name);
     } else {
       assert.ok(Either.isLeft(result), name);
       assert.equal(result.left._tag, 'HerdrError', name);
+      assert.equal(result.left.reason, reason, name);
+      assert.ok(result.left.cause instanceof Error, name);
       assert.match(result.left.message, expected, name);
     }
   }

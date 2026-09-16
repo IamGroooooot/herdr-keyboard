@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { fit, render } from '../src/terminal/view.js';
 import { shortcuts } from '../src/config.js';
 import { baseKeys } from '../src/domain/composer.js';
-import { PaneId } from '../src/domain/keys.js';
+import { PaneId } from '../src/herdr.js';
 import { layout, hitTest } from '../src/terminal/layout.js';
 import type { Button } from '../src/terminal/layout.js';
 

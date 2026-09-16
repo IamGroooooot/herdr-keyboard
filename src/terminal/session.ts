@@ -1,7 +1,7 @@
 import type { Readable, Writable } from 'node:stream';
 import { Data, Effect, Queue } from 'effect';
 import type { Scope } from 'effect';
-import type { InputEvent } from '../domain/actions.js';
+import type { InputEvent } from '../picker-actions.js';
 import { createInputDecoder } from './input.js';
 
 export interface TerminalInput extends Readable {
@@ -16,7 +16,10 @@ export interface TerminalOutput extends Writable {
 export type TerminalEvent = InputEvent | { readonly type: 'resize' } | { readonly type: 'end' } |
   { readonly type: 'error'; readonly cause: unknown };
 
-export class TerminalError extends Data.TaggedError('TerminalError')<{ readonly message: string }> {}
+export class TerminalError extends Data.TaggedError('TerminalError')<{
+  readonly message: string;
+  readonly cause?: unknown;
+}> {}
 
 export function terminalSession(input: TerminalInput, output: TerminalOutput): Effect.Effect<
   Queue.Queue<TerminalEvent>, TerminalError, Scope.Scope
@@ -35,6 +38,7 @@ export function terminalSession(input: TerminalInput, output: TerminalOutput): E
 export function terminalOperation<A>(operation: () => A): Effect.Effect<A, TerminalError> {
   return Effect.try({ try: operation, catch: (cause) => new TerminalError({
     message: cause instanceof Error ? cause.message : String(cause),
+    cause,
   }) });
 }
 

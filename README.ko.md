@@ -20,6 +20,10 @@ herdr plugin install IamGroooooot/herdr-keyboard
 
 설치를 승인합니다. Herdr가 저장소를 내려받고 의존성 설치와 빌드를 실행합니다. GitHub로 설치한 플러그인은 같은 명령을 다시 실행해 업데이트합니다.
 
+설치할 셸에서 `node`와 `npm`이 실행되어야 합니다. 빌드 시 사용한 Node의 실제 경로를 저장하므로, nvm·mise 등을 사용하는 셸과 Herdr 서버의 PATH가 달라도 실행할 수 있습니다. 사용자 전역 설정은 변경하지 않습니다.
+
+저장된 Node가 삭제되면 서버 PATH에서 실행 가능한 Node 24 이상을 찾습니다. 찾지 못하면 Node를 사용할 수 있는 셸에서 위 설치 명령을 다시 실행합니다. 로컬로 연결했다면 `npm run build`로 경로를 갱신합니다.
+
 ## 사용
 
 키를 보낼 대상 터미널을 선택합니다. Herdr의 **Keyboard: Choose shortcut** 액션이나 다음 명령으로 picker를 엽니다.
@@ -112,5 +116,14 @@ herdr plugin link .
 ```
 
 코드를 수정한 뒤 `npm run check`를 실행합니다. `plugin link`는 자동으로 빌드하지 않습니다.
+
+코드는 다음 책임으로 나뉩니다.
+
+- `domain/`: 키 이름 검증과 키 조합. Herdr나 터미널 I/O에 의존하지 않습니다.
+- `picker-actions.ts`, `picker-state.ts`: 화면 조작과 상태 전이. `picker.ts`가 전송과 화면 갱신을 실행합니다.
+- `herdr.ts`: 서비스 계약과 pane ID. `herdr-client.ts`는 외부 명령 실행, `target-pane.ts`는 대상 pane 해석을 담당합니다.
+- `terminal/`: 입력 디코딩, 배치, 렌더링, 터미널 자원 관리. `scripts/`는 설치 시 실행기 생성을 담당합니다.
+
+오류는 키·설정·대상 pane·Herdr 명령·터미널 경계에서 구분합니다. 외부 오류의 원인은 `cause`로 보존하고, 전송 실패는 picker 안에 표시합니다. 테스트는 Arrange–Act–Assert 순서로 작성하며, 생성된 문자열보다 실행 결과를 검증합니다.
 
 </details>

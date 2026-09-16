@@ -2,7 +2,6 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Either } from 'effect';
 import { normalizeKey, parseBaseKey } from '../src/domain/keys.js';
-import { keyAction } from '../src/domain/actions.js';
 
 test('key aliases and modifier order normalize to canonical combinations', () => {
   // Arrange
@@ -48,15 +47,4 @@ test('base-key entry accepts one key and rejects a combination', () => {
   assert.equal(Either.getOrThrow(accepted), 'f2');
   assert.ok(Either.isLeft(rejected));
   assert.equal(rejected.left._tag, 'InvalidKey');
-});
-
-test('inherited object properties cannot resolve to picker actions', () => {
-  // Arrange
-  const propertyNames = ['constructor', '__proto__', 'toString'];
-
-  // Act
-  const actions = propertyNames.flatMap((key) => [keyAction(key, false), keyAction(key, true)]);
-
-  // Assert
-  assert.ok(actions.every((action) => action === undefined));
 });

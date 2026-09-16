@@ -1,7 +1,8 @@
-import { modifierHotkeys } from '../domain/actions.js';
-import type { BaseKey, KeyChord, PaneId } from '../domain/keys.js';
+import { modifierHotkeys } from '../picker-actions.js';
+import type { BaseKey, KeyChord } from '../domain/keys.js';
+import type { PaneId } from '../herdr.js';
 import type { Composer } from '../domain/composer.js';
-import type { Button, View } from './layout.js';
+import type { Button, PickerLayout } from './layout.js';
 
 export interface ComposerPreview extends Composer {
   readonly typing: string | null;
@@ -20,7 +21,7 @@ export interface ScreenContent {
   readonly composer: ComposerPreview | null;
 }
 
-export function render(view: View, content: ScreenContent): string {
+export function render(view: PickerLayout, content: ScreenContent): string {
   const clear = '\x1b[2J\x1b[H';
   if (view.compact) return clear + textAt(view, 1, 1, `Need 25x${view.composing ? 14 : 10}. m:back q:exit`);
   const { composer, pane, status } = content;
@@ -34,7 +35,7 @@ export function render(view: View, content: ScreenContent): string {
   ].join('');
 }
 
-function renderButton(view: View, button: Button, content: ScreenContent): string {
+function renderButton(view: PickerLayout, button: Button, content: ScreenContent): string {
   const { action } = button;
   if (typeof action === 'number') return renderChoice(button, action, view, content);
   switch (action) {
@@ -46,7 +47,7 @@ function renderButton(view: View, button: Button, content: ScreenContent): strin
         `[m] ${content.composer ? 'Shortcuts' : 'Compose'}   ${view.page + 1}/${view.pages}`);
     case 'previous': return textAt(view, button.x, button.y, '[p] Prev');
     case 'next': return textAt(view, button.x, button.y, '[n] Next');
-    case 'repeat': return textAt(view, button.x, button.y, `[r] Keep:${content.closeAfterSend ? 'OFF' : 'ON '}`);
+    case 'toggle-keep-open': return textAt(view, button.x, button.y, `[r] Keep:${content.closeAfterSend ? 'OFF' : 'ON '}`);
     case 'close': return textAt(view, button.x, button.y, '[q] Exit');
     case 'send': return textAt(view, button.x, button.y, '[enter] Send');
     case 'type-key': return textAt(view, button.x, button.y, '[k] Key');
@@ -54,7 +55,7 @@ function renderButton(view: View, button: Button, content: ScreenContent): strin
   }
 }
 
-function renderChoice(button: Button, index: number, view: View, content: ScreenContent): string {
+function renderChoice(button: Button, index: number, view: PickerLayout, content: ScreenContent): string {
   const entry = content.entries[view.page * view.pageSize + index];
   if (!entry) return '';
   const active = content.composer ? content.composer.base === entry.key : content.selected === index;
@@ -62,7 +63,7 @@ function renderChoice(button: Button, index: number, view: View, content: Screen
     fit(` ${(index + 1) % 10} ${entry.label}`, button.width) + '\x1b[0m';
 }
 
-function textAt(view: View, x: number, y: number, text: string): string {
+function textAt(view: PickerLayout, x: number, y: number, text: string): string {
   return cursorAt(x, y) + fit(text, Math.max(0, view.width - x + 1));
 }
 

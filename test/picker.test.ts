@@ -32,7 +32,7 @@ test('closing the picker sends nothing', { timeout: 5000 }, async (t) => {
 
 test('a failed send displays the error without retrying or closing', { timeout: 5000 }, async (t) => {
   // Arrange
-  const session = await openPicker(t, { sendResult: Effect.fail(new HerdrError({ message: 'pane closed' })) });
+  const session = await openPicker(t, { sendResult: Effect.fail(new HerdrError({ reason: 'failed', message: 'pane closed' })) });
 
   // Act
   session.input.write('2');

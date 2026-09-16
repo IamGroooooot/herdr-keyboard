@@ -23,8 +23,6 @@ export const KeyChordName = Schema.TemplateLiteral(
 export type KeyChordName = typeof KeyChordName.Type;
 export const KeyChord = KeyChordName.pipe(Schema.brand('KeyChord'));
 export type KeyChord = typeof KeyChord.Type;
-export const PaneId = Schema.String.pipe(Schema.minLength(1), Schema.brand('PaneId'));
-export type PaneId = typeof PaneId.Type;
 
 export interface Shortcut {
   readonly label: string;

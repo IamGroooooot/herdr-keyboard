@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import type { TestContext } from 'node:test';
 import assert from 'node:assert/strict';
-import type { InputEvent } from '../src/domain/actions.js';
+import type { InputEvent } from '../src/picker-actions.js';
 import { createInputDecoder } from '../src/terminal/input.js';
 
 test('a split mouse press emits one click; release, drag and scroll emit none', () => {

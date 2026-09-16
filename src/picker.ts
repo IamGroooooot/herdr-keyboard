@@ -1,11 +1,14 @@
 import { Effect, Option, Queue } from 'effect';
 import { loadConfig } from './config.js';
-import type { Environment, KeyboardConfig } from './config.js';
+import type { ConfigError, KeyboardConfig } from './config.js';
+import type { Environment } from './environment.js';
 import { baseKeys, composedKey } from './domain/composer.js';
 import { initialState, updatePicker } from './picker-state.js';
-import type { Decision, PickerState } from './picker-state.js';
-import type { PaneId } from './domain/keys.js';
-import { Herdr, targetPane } from './herdr.js';
+import type { PickerDecision, PickerState } from './picker-state.js';
+import { Herdr } from './herdr.js';
+import type { PaneId } from './herdr.js';
+import { resolveTargetPane } from './target-pane.js';
+import type { TargetError } from './target-pane.js';
 import { TerminalError, terminalOperation, terminalSession } from './terminal/session.js';
 import type { TerminalInput, TerminalOutput } from './terminal/session.js';
 import { layout } from './terminal/layout.js';
@@ -13,9 +16,9 @@ import { render } from './terminal/view.js';
 
 export function pickShortcut(
   input: TerminalInput = process.stdin, output: TerminalOutput = process.stdout, env: Environment = process.env,
-) {
+): Effect.Effect<void, ConfigError | TargetError | TerminalError, Herdr> {
   return Effect.scoped(Effect.gen(function* () {
-    const pane = yield* targetPane(env);
+    const pane = yield* resolveTargetPane(env);
     const config = yield* loadConfig(env);
     const herdr = yield* Herdr;
     const events = yield* terminalSession(input, output);
@@ -27,8 +30,9 @@ export function pickShortcut(
       if (event.type === 'end') return;
       if (event.type === 'error') return yield* new TerminalError({ message:
         event.cause instanceof Error ? event.cause.message : String(event.cause),
+        cause: event.cause,
       });
-      const decision: Decision = event.type === 'resize'
+      const decision: PickerDecision = event.type === 'resize'
         ? { _tag: 'Continue', state: screen.state }
         : updatePicker(screen.state, event, screen.view, config);
       const nextState = yield* executeDecision(decision, pane, herdr);
@@ -40,7 +44,7 @@ export function pickShortcut(
 }
 
 function executeDecision(
-  decision: Decision, pane: PaneId, herdr: Herdr['Type'],
+  decision: PickerDecision, pane: PaneId, herdr: Herdr['Type'],
 ): Effect.Effect<Option.Option<PickerState>> {
   switch (decision._tag) {
     case 'Close': return Effect.succeed(Option.none());

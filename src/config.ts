@@ -3,13 +3,16 @@ import { join } from 'node:path';
 import { Array, Data, Effect, Either, Schema } from 'effect';
 import { KeyChord, normalizeKey } from './domain/keys.js';
 import type { KeyChordName, Shortcut } from './domain/keys.js';
+import type { Environment } from './environment.js';
 
-export type Environment = Readonly<Record<string, string | undefined>>;
 export interface KeyboardConfig {
   readonly closeAfterSend: boolean;
   readonly shortcuts: Array.NonEmptyReadonlyArray<Shortcut>;
 }
-export class ConfigError extends Data.TaggedError('ConfigError')<{ readonly message: string }> {}
+export class ConfigError extends Data.TaggedError('ConfigError')<{
+  readonly message: string;
+  readonly cause?: unknown;
+}> {}
 
 export function loadConfig(env: Environment = process.env): Effect.Effect<KeyboardConfig, ConfigError> {
   if (!env['HERDR_PLUGIN_CONFIG_DIR']) return Effect.succeed(defaultConfig);
@@ -20,23 +23,23 @@ export function loadConfig(env: Environment = process.env): Effect.Effect<Keyboa
   }).pipe(
     Effect.catchAll((cause) => isMissingFile(cause)
       ? Effect.succeed(undefined)
-      : Effect.fail(new ConfigError({ message: `Cannot read ${path}: ${message(cause)}` }))),
+      : Effect.fail(new ConfigError({ message: `Cannot read ${path}: ${message(cause)}`, cause }))),
     Effect.flatMap((text) => text === undefined ? Effect.succeed(defaultConfig) :
       Schema.decodeUnknown(Schema.parseJson())(text).pipe(
-        Effect.mapError((cause) => new ConfigError({ message: cause.message })),
+        Effect.mapError((cause) => new ConfigError({ message: cause.message, cause })),
         Effect.flatMap(validateConfig),
-        Effect.mapError((cause) => new ConfigError({ message: `Invalid ${path}: ${cause.message}` })),
+        Effect.mapError((cause) => new ConfigError({ message: `Invalid ${path}: ${cause.message}`, cause })),
       )),
   );
 }
 
 export function validateConfig(value: unknown): Effect.Effect<KeyboardConfig, ConfigError> {
   return Schema.decodeUnknown(ConfigInput, { onExcessProperty: 'error' })(value).pipe(
-    Effect.mapError((cause) => new ConfigError({ message: cause.message })),
+    Effect.mapError((cause) => new ConfigError({ message: cause.message, cause })),
     Effect.flatMap((config) => Effect.all(Array.map(config.shortcuts ?? shortcuts, (entry) =>
       normalizeKey(entry.key).pipe(
         Either.map((key) => ({ label: entry.label.trim(), key })),
-        Either.mapLeft((cause) => new ConfigError({ message: cause.message })),
+        Either.mapLeft((cause) => new ConfigError({ message: cause.message, cause })),
       ))).pipe(Effect.map((entries) => ({ closeAfterSend: config.closeAfterSend ?? true, shortcuts: entries })))),
   );
 }
