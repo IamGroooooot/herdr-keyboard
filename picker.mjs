@@ -6,12 +6,14 @@ import { createInputDecoder } from './input.mjs';
 import { layout, hitTest, render } from './view.mjs';
 import { baseKeys, composedKey, setBase } from './composer.mjs';
 
-export function targetPane(env) {
-  // Popups have no HERDR_PANE_ID. Their context refers to the underlying pane.
-  const context = JSON.parse(env.HERDR_PLUGIN_CONTEXT_JSON || '{}');
-  const pane = env.HERDR_KEYBOARD_TARGET || context.focused_pane_id || env.HERDR_PANE_ID;
-  if (typeof pane !== 'string' || !pane) throw new Error('No target pane. Open Keyboard from a Herdr pane.');
-  return pane;
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  try {
+    if (process.argv[2] === '--open') openPicker();
+    else await pickShortcut();
+  } catch (error) {
+    console.error(error.message);
+    process.exitCode = 1;
+  }
 }
 
 export function openPicker(env = process.env, run = spawnSync) {
@@ -172,12 +174,10 @@ export function pickShortcut(input = process.stdin, output = process.stdout, env
   });
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  try {
-    if (process.argv[2] === '--open') openPicker();
-    else await pickShortcut();
-  } catch (error) {
-    console.error(error.message);
-    process.exitCode = 1;
-  }
+export function targetPane(env) {
+  // Popups have no HERDR_PANE_ID. Their context refers to the underlying pane.
+  const context = JSON.parse(env.HERDR_PLUGIN_CONTEXT_JSON || '{}');
+  const pane = env.HERDR_KEYBOARD_TARGET || context.focused_pane_id || env.HERDR_PANE_ID;
+  if (typeof pane !== 'string' || !pane) throw new Error('No target pane. Open Keyboard from a Herdr pane.');
+  return pane;
 }

@@ -8,6 +8,8 @@ export function createInputDecoder(emit) {
     '\x1b[5~': 'previous', '\x1b[6~': 'next', '\r': 'enter', '\n': 'enter',
     '\x03': 'close', '\x04': 'close', '\x7f': 'backspace', '\b': 'backspace' };
 
+  return { feed, dispose() { clearTimeout(escapeTimer); pending = ''; } };
+
   function feed(chunk) {
     clearTimeout(escapeTimer);
     pending += Buffer.isBuffer(chunk) ? chunk.toString('latin1') : chunk;
@@ -59,5 +61,4 @@ export function createInputDecoder(emit) {
       emit({ type: 'key', key: keys[char] || char });
     }
   }
-  return { feed, dispose() { clearTimeout(escapeTimer); pending = ''; } };
 }

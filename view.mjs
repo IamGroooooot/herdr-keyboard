@@ -1,24 +1,31 @@
-// Use terminal-cell widths for both drawing and hit testing (including CJK labels).
-export function cellWidth(char) {
-  if (/\p{Mark}/u.test(char)) return 0;
-  const code = char.codePointAt(0);
-  return code >= 0x1100 && (code <= 0x115f || code === 0x2329 || code === 0x232a ||
-    (code >= 0x2e80 && code <= 0xa4cf) || (code >= 0xac00 && code <= 0xd7a3) ||
-    (code >= 0xf900 && code <= 0xfaff) || (code >= 0xfe10 && code <= 0xfe6f) ||
-    (code >= 0xff01 && code <= 0xff60) || (code >= 0xffe0 && code <= 0xffe6) ||
-    code >= 0x1f000) ? 2 : 1;
-}
-
-export function fit(text, width) {
-  let result = '';
-  let used = 0;
-  for (const char of text.replace(/[\p{Cc}\p{Cf}]/gu, ' ')) {
-    const size = cellWidth(char);
-    if (used + size > width) break;
-    result += char;
-    used += size;
+export function render(view, entries, pane, selected, closeAfterSend, status = '', composer = null) {
+  const at = (x, y, text) => `\x1b[${y};${x}H${fit(text, Math.max(0, view.width - x + 1))}`;
+  let output = '\x1b[2J\x1b[H';
+  if (view.compact) return output + at(1, 1, `Need 25x${view.composing ? 14 : 10}. c:back q:exit`);
+  output += at(2, 1, `Keyboard > ${pane}`);
+  output += at(2, 2, `[c] ${composer ? 'Shortcuts' : 'Compose'}   ${view.page + 1}/${view.pages}`);
+  if (composer) {
+    for (const [index, modifier] of ['ctrl', 'alt', 'shift'].entries()) {
+      const hotkey = { ctrl: 't', alt: 'a', shift: 's' }[modifier];
+      const label = { ctrl: 'Ctrl', alt: 'Alt', shift: 'Shift' }[modifier];
+      output += `\x1b[4;${1 + index * 8}H${composer[modifier] ? '\x1b[7m' : '\x1b[100m'}${fit(`[${hotkey}]${label}`, 8)}\x1b[0m`;
+    }
+    output += at(1, 5, composer.typing !== null ? `Key: ${composer.typing}_` : (composer.preview || 'Choose modifiers + key'));
+    output += at(2, view.height - 3, '[Enter] Send  [k] Key');
   }
-  return result + ' '.repeat(Math.max(0, width - used));
+  for (const button of view.buttons) {
+    if (typeof button.action !== 'number') continue;
+    const index = button.action;
+    const entry = entries[view.page * view.pageSize + index];
+    const active = composer ? composer.base === entry.key : selected === index;
+    output += `\x1b[${button.y};${button.x}H${active ? '\x1b[7m' : '\x1b[100m'}`;
+    output += fit(` ${index + 1} ${entry.label}`, button.width) + '\x1b[0m';
+    output += `\x1b[${button.y + 1};${button.x}H\x1b[90m${fit(`   ${entry.key}`, button.width)}\x1b[0m`;
+  }
+  output += at(2, view.height - 4, status || (composer ? 'Select key, then Send.' : 'Tap / 1-9 to send.'));
+  output += at(2, view.height - (composer ? 5 : 3), '[p] Prev  [n] Next');
+  output += at(2, view.height - 1, `[r] Keep:${closeAfterSend ? 'OFF' : 'ON '}   [0] Exit`);
+  return output;
 }
 
 export function layout(columns, rows, total, page = 0, composing = false) {
@@ -61,32 +68,25 @@ export function hitTest(view, x, y) {
   return view.buttons.find((button) => x >= button.x && x < button.x + button.width && y >= button.y && y < button.y + button.height)?.action;
 }
 
-export function render(view, entries, pane, selected, closeAfterSend, status = '', composer = null) {
-  const at = (x, y, text) => `\x1b[${y};${x}H${fit(text, Math.max(0, view.width - x + 1))}`;
-  let output = '\x1b[2J\x1b[H';
-  if (view.compact) return output + at(1, 1, `Need 25x${view.composing ? 14 : 10}. c:back q:exit`);
-  output += at(2, 1, `Keyboard > ${pane}`);
-  output += at(2, 2, `[c] ${composer ? 'Shortcuts' : 'Compose'}   ${view.page + 1}/${view.pages}`);
-  if (composer) {
-    for (const [index, modifier] of ['ctrl', 'alt', 'shift'].entries()) {
-      const hotkey = { ctrl: 't', alt: 'a', shift: 's' }[modifier];
-      const label = { ctrl: 'Ctrl', alt: 'Alt', shift: 'Shift' }[modifier];
-      output += `\x1b[4;${1 + index * 8}H${composer[modifier] ? '\x1b[7m' : '\x1b[100m'}${fit(`[${hotkey}]${label}`, 8)}\x1b[0m`;
-    }
-    output += at(1, 5, composer.typing !== null ? `Key: ${composer.typing}_` : (composer.preview || 'Choose modifiers + key'));
-    output += at(2, view.height - 3, '[Enter] Send  [k] Key');
+export function fit(text, width) {
+  let result = '';
+  let used = 0;
+  for (const char of text.replace(/[\p{Cc}\p{Cf}]/gu, ' ')) {
+    const size = cellWidth(char);
+    if (used + size > width) break;
+    result += char;
+    used += size;
   }
-  for (const button of view.buttons) {
-    if (typeof button.action !== 'number') continue;
-    const index = button.action;
-    const entry = entries[view.page * view.pageSize + index];
-    const active = composer ? composer.base === entry.key : selected === index;
-    output += `\x1b[${button.y};${button.x}H${active ? '\x1b[7m' : '\x1b[100m'}`;
-    output += fit(` ${index + 1} ${entry.label}`, button.width) + '\x1b[0m';
-    output += `\x1b[${button.y + 1};${button.x}H\x1b[90m${fit(`   ${entry.key}`, button.width)}\x1b[0m`;
-  }
-  output += at(2, view.height - 4, status || (composer ? 'Select key, then Send.' : 'Tap / 1-9 to send.'));
-  output += at(2, view.height - (composer ? 5 : 3), '[p] Prev  [n] Next');
-  output += at(2, view.height - 1, `[r] Keep:${closeAfterSend ? 'OFF' : 'ON '}   [0] Exit`);
-  return output;
+  return result + ' '.repeat(Math.max(0, width - used));
+}
+
+// Use terminal-cell widths for both drawing and hit testing (including CJK labels).
+export function cellWidth(char) {
+  if (/\p{Mark}/u.test(char)) return 0;
+  const code = char.codePointAt(0);
+  return code >= 0x1100 && (code <= 0x115f || code === 0x2329 || code === 0x232a ||
+    (code >= 0x2e80 && code <= 0xa4cf) || (code >= 0xac00 && code <= 0xd7a3) ||
+    (code >= 0xf900 && code <= 0xfaff) || (code >= 0xfe10 && code <= 0xfe6f) ||
+    (code >= 0xff01 && code <= 0xff60) || (code >= 0xffe0 && code <= 0xffe6) ||
+    code >= 0x1f000) ? 2 : 1;
 }
