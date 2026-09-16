@@ -1,10 +1,10 @@
 {
   "name": "herdr-keyboard",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
   "engines": {
-    "node": ">=20"
+    "node": ">=24"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.test.json",
@@ -16,7 +16,7 @@
     "effect": "3.22.2"
   },
   "devDependencies": {
-    "@types/node": "20.19.43",
+    "@types/node": "24.13.5",
     "tsx": "4.23.13",
     "typescript": "7.0.2"
   }

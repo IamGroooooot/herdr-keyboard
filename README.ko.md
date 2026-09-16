@@ -12,7 +12,7 @@
 
 ## 설치
 
-**Herdr 0.9.0 이상**, **Node.js 20 이상**, npm, Git이 필요합니다.
+**Herdr 0.9.0 이상**, **Node.js 24 LTS 이상**, npm, Git이 필요합니다.
 
 ```sh
 herdr plugin install IamGroooooot/herdr-keyboard

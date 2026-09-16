@@ -12,7 +12,7 @@ Pick a shortcut such as **Alt + ↑** or **Shift + Tab**, or build your own:
 
 ## Install
 
-Requires **Herdr 0.9.0+**, **Node.js 20+**, npm, and Git.
+Requires **Herdr 0.9.0+**, **Node.js 24 LTS or later**, npm, and Git.
 
 ```sh
 herdr plugin install IamGroooooot/herdr-keyboard
