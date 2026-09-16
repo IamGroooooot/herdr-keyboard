@@ -8,7 +8,8 @@ import type { PaneId } from './domain/keys.js';
 import { Herdr, targetPane } from './herdr.js';
 import { TerminalError, terminalOperation, terminalSession } from './terminal/session.js';
 import type { TerminalInput, TerminalOutput } from './terminal/session.js';
-import { layout, render } from './terminal/view.js';
+import { layout } from './terminal/layout.js';
+import { render } from './terminal/view.js';
 
 export function pickShortcut(
   input: TerminalInput = process.stdin, output: TerminalOutput = process.stdout, env: Environment = process.env,
@@ -65,7 +66,9 @@ function renderScreen(screen: ReturnType<typeof createScreen>, pane: PaneId) {
   const composer = state.mode._tag === 'Shortcuts' ? null : { ...state.composer,
     preview: composedKey(state.composer), typing: state.mode._tag === 'TypingKey' ? state.mode.text : null,
   };
-  return render(view, entries, pane, state.selected, state.closeAfterSend, state.status, composer);
+  return render(view, { entries, pane, selected: state.selected, closeAfterSend: state.closeAfterSend,
+    status: state.status, composer,
+  });
 }
 
 function assertNever(value: never): never {

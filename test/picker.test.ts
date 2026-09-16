@@ -5,7 +5,7 @@ import { Effect, Layer } from 'effect';
 import { pickShortcut } from '../src/picker.js';
 import { Herdr, HerdrError } from '../src/herdr.js';
 import { shortcuts } from '../src/config.js';
-import { layout } from '../src/terminal/view.js';
+import { layout } from '../src/terminal/layout.js';
 
 class Input extends PassThrough {
   isTTY = true;

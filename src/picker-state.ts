@@ -1,7 +1,7 @@
 import { Either } from 'effect';
 import type { KeyboardConfig } from './config.js';
-import type { View } from './terminal/view.js';
-import { hitTest } from './terminal/view.js';
+import type { View } from './terminal/layout.js';
+import { hitTest } from './terminal/layout.js';
 import { keyAction } from './domain/actions.js';
 import type { InputEvent, PickerMode } from './domain/actions.js';
 import { baseKeys, composedKey, setBase } from './domain/composer.js';

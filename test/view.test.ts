@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { fit, layout, hitTest } from '../src/terminal/view.js';
+import { fit } from '../src/terminal/view.js';
+import { layout, hitTest } from '../src/terminal/layout.js';
 
 test('buttons remain in bounds and do not overlap navigation on small and large screens', () => {
   for (const columns of [25, 32, 40, 55, 80, 120]) {

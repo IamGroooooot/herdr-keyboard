@@ -1,26 +1,8 @@
-import type { Action } from '../domain/actions.js';
 import { modifierHotkeys } from '../domain/actions.js';
-import { Modifier } from '../domain/keys.js';
-import type { BaseKey, KeyChord } from '../domain/keys.js';
+import type { BaseKey, KeyChord, Modifier, PaneId } from '../domain/keys.js';
 import type { Composer } from '../domain/composer.js';
+import type { Button, View } from './layout.js';
 
-export interface Button {
-  readonly x: number;
-  readonly y: number;
-  readonly width: number;
-  readonly height: number;
-  readonly action: Action;
-}
-export interface View {
-  readonly width: number;
-  readonly height: number;
-  readonly composing: boolean;
-  readonly compact: boolean;
-  readonly page: number;
-  readonly pageSize: number;
-  readonly pages: number;
-  readonly buttons: ReadonlyArray<Button>;
-}
 export interface ComposerPreview extends Composer {
   readonly typing: string | null;
   readonly preview: KeyChord | null;
@@ -29,87 +11,66 @@ export interface DisplayEntry {
   readonly label: string;
   readonly key: BaseKey | KeyChord;
 }
+export interface ScreenContent {
+  readonly pane: PaneId;
+  readonly entries: ReadonlyArray<DisplayEntry>;
+  readonly selected: number;
+  readonly closeAfterSend: boolean;
+  readonly status: string;
+  readonly composer: ComposerPreview | null;
+}
 
-export function render(view: View, entries: ReadonlyArray<DisplayEntry>, pane: string, selected: number, closeAfterSend: boolean, status = '', composer: ComposerPreview | null = null) {
-  const at = (x: number, y: number, text: string) => `\x1b[${y};${x}H${fit(text, Math.max(0, view.width - x + 1))}`;
-  let output = '\x1b[2J\x1b[H';
-  if (view.compact) return output + at(1, 1, `Need 25x${view.composing ? 14 : 10}. m:back q:exit`);
-  output += at(2, 1, `Keyboard > ${pane}`);
-  output += at(2, 2, `[m] ${composer ? 'Shortcuts' : 'Compose'}   ${view.page + 1}/${view.pages}`);
-  if (composer) renderComposer(composer);
-  renderButtons();
-  renderFooter();
-  return output;
+export function render(view: View, content: ScreenContent): string {
+  const clear = '\x1b[2J\x1b[H';
+  if (view.compact) return clear + textAt(view, 1, 1, `Need 25x${view.composing ? 14 : 10}. m:back q:exit`);
+  const { composer, pane, status } = content;
+  return clear + [
+    textAt(view, 2, 1, `Keyboard > ${pane}`),
+    composer ? textAt(view, 1, 5, composer.typing !== null
+      ? `Key: ${composer.typing}_` : (composer.preview || 'Choose modifiers + key')) : '',
+    ...view.buttons.map((button) => renderButton(view, button, content)),
+    textAt(view, 2, view.height - 4, status || (composer ? 'Select key, then Send.' : 'Tap / 1-9 to send.')),
+  ].join('');
+}
 
-  function renderComposer(composer: ComposerPreview) {
-    for (const [index, modifier] of Modifier.literals.entries()) {
-      const hotkey = modifierHotkeys[modifier];
-      const label = { ctrl: 'Ctrl', alt: 'Alt', shift: 'Shift' }[modifier];
-      output += `\x1b[4;${1 + index * 8}H${composer[modifier] ? '\x1b[7m' : '\x1b[100m'}${fit(`[${hotkey}]${label}`, 8)}\x1b[0m`;
-    }
-    output += at(1, 5, composer.typing !== null ? `Key: ${composer.typing}_` : (composer.preview || 'Choose modifiers + key'));
-    output += at(2, view.height - 3, '[Enter] Send  [k] Key');
-  }
-
-  function renderButtons() {
-    for (const button of view.buttons) {
-      if (typeof button.action !== 'number') continue;
-      const index = button.action;
-      const entry = entries[view.page * view.pageSize + index];
-      if (!entry) continue;
-      const active = composer ? composer.base === entry.key : selected === index;
-      output += `\x1b[${button.y};${button.x}H${active ? '\x1b[7m' : '\x1b[100m'}`;
-      output += fit(` ${index + 1} ${entry.label}`, button.width) + '\x1b[0m';
-      output += `\x1b[${button.y + 1};${button.x}H\x1b[90m${fit(`   ${entry.key}`, button.width)}\x1b[0m`;
-    }
-  }
-
-  function renderFooter() {
-    output += at(2, view.height - 4, status || (composer ? 'Select key, then Send.' : 'Tap / 1-9 to send.'));
-    output += at(2, view.height - (composer ? 5 : 3), '[p] Prev  [n] Next');
-    output += at(2, view.height - 1, `[r] Keep:${closeAfterSend ? 'OFF' : 'ON '}   [0] Exit`);
+function renderButton(view: View, button: Button, content: ScreenContent): string {
+  const { action } = button;
+  if (typeof action === 'number') return renderChoice(button, action, view, content);
+  switch (action) {
+    case 'ctrl': case 'alt': case 'shift':
+      return `${cursorAt(button.x, button.y)}${content.composer?.[action] ? '\x1b[7m' : '\x1b[100m'}` +
+        fit(`[${modifierHotkeys[action]}]${modifierLabels[action]}`, button.width) + '\x1b[0m';
+    case 'compose':
+      return textAt(view, button.x, button.y,
+        `[m] ${content.composer ? 'Shortcuts' : 'Compose'}   ${view.page + 1}/${view.pages}`);
+    case 'previous': return textAt(view, button.x, button.y, '[p] Prev');
+    case 'next': return textAt(view, button.x, button.y, '[n] Next');
+    case 'repeat': return textAt(view, button.x, button.y, `[r] Keep:${content.closeAfterSend ? 'OFF' : 'ON '}`);
+    case 'close': return textAt(view, button.x, button.y, '[0] Exit');
+    case 'send': return textAt(view, button.x, button.y, '[Enter] Send');
+    case 'type-key': return textAt(view, button.x, button.y, '[k] Key');
+    default: return action satisfies never;
   }
 }
 
-export function layout(columns: number, rows: number, total: number, page = 0, composing = false): View {
-  const width = Math.max(1, columns - 1);
-  const height = Math.max(1, rows);
-  const minHeight = composing ? 14 : 10;
-  if (width < 24 || height < minHeight) return { width, height, composing, compact: true, page: 0, pageSize: 0, pages: 0, buttons: [] };
-  const cols = composing ? (width >= 40 ? 3 : 2) : (width >= 54 ? 2 : 1);
-  const buttonWidth = Math.floor((width - 3) / cols);
-  const pageSize = Math.min(9, Math.floor((height - (composing ? 12 : 7)) / 2) * cols);
-  const pages = Math.ceil(total / pageSize);
-  page = Math.max(0, Math.min(page, pages - 1));
-  const count = Math.min(pageSize, total - page * pageSize);
-  const buttons: Button[] = Array.from({ length: count }, (_, index) => ({
-    x: 2 + (index % cols) * buttonWidth,
-    y: (composing ? 7 : 4) + Math.floor(index / cols) * 2,
-    width: buttonWidth - 1, height: 2, action: index,
-  }));
-  const footerY = height - (composing ? 5 : 3);
-  buttons.push(
-    { x: 2, y: 2, width: 13, height: 1, action: 'compose' },
-    { x: 2, y: footerY, width: 8, height: 1, action: 'previous' },
-    { x: 12, y: footerY, width: 8, height: 1, action: 'next' },
-    { x: 2, y: height - 1, width: 13, height: 1, action: 'repeat' },
-    { x: 17, y: height - 1, width: 8, height: 1, action: 'close' },
-  );
-  if (composing) {
-    for (const [index, modifier] of Modifier.literals.entries()) {
-      buttons.push({ x: 1 + index * 8, y: 4, width: 8, height: 1, action: modifier });
-    }
-    buttons.push(
-      { x: 2, y: height - 3, width: 12, height: 1, action: 'send' },
-      { x: 16, y: height - 3, width: 8, height: 1, action: 'type-key' },
-    );
-  }
-  return { width, height, composing, compact: false, page, pageSize, pages, buttons };
+function renderChoice(button: Button, index: number, view: View, content: ScreenContent): string {
+  const entry = content.entries[view.page * view.pageSize + index];
+  if (!entry) return '';
+  const active = content.composer ? content.composer.base === entry.key : content.selected === index;
+  return cursorAt(button.x, button.y) + (active ? '\x1b[7m' : '\x1b[100m') +
+    fit(` ${index + 1} ${entry.label}`, button.width) + '\x1b[0m' +
+    cursorAt(button.x, button.y + 1) + '\x1b[90m' + fit(`   ${entry.key}`, button.width) + '\x1b[0m';
 }
 
-export function hitTest(view: View, x: number, y: number): Action | undefined {
-  return view.buttons.find((button) => x >= button.x && x < button.x + button.width && y >= button.y && y < button.y + button.height)?.action;
+function textAt(view: View, x: number, y: number, text: string): string {
+  return cursorAt(x, y) + fit(text, Math.max(0, view.width - x + 1));
 }
+
+function cursorAt(x: number, y: number): string {
+  return `\x1b[${y};${x}H`;
+}
+
+const modifierLabels = { ctrl: 'Ctrl', alt: 'Alt', shift: 'Shift' } as const satisfies Readonly<Record<Modifier, string>>;
 
 export function fit(text: string, width: number) {
   let result = '';
