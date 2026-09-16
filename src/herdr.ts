@@ -21,7 +21,8 @@ export function herdrLayer(env: Environment = process.env, execute: ExecuteComma
     sendKey: (pane, key) => run(['pane', 'send-keys', pane, key]),
     openPicker: (pane) => run([
       'plugin', 'pane', 'open', '--plugin', 'herdr-keyboard', '--entrypoint', 'picker',
-      '--target-pane', pane, '--env', `HERDR_KEYBOARD_TARGET=${pane}`,
+      // Popups open over the active pane; pin only the keyboard destination.
+      '--env', `HERDR_KEYBOARD_TARGET=${pane}`,
     ]),
   });
 }

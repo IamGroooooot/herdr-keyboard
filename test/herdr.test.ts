@@ -4,7 +4,7 @@ import { Effect, Either } from 'effect';
 import { Herdr, executeCommand, herdrLayer, targetPane } from '../src/herdr.js';
 import type { Environment } from '../src/config.js';
 
-test('opening the picker preserves an explicit target even when focus has moved', async () => {
+test('opening a popup omits the pane placement target and preserves the keyboard destination', async () => {
   // Arrange
   const env = { HERDR_KEYBOARD_TARGET: 'w1:p2', HERDR_PLUGIN_CONTEXT_JSON: '{"focused_pane_id":"w1:p3"}' };
   const commands: Array<{ binary: string; args: ReadonlyArray<string> }> = [];
@@ -20,7 +20,7 @@ test('opening the picker preserves an explicit target even when focus has moved'
   // Assert
   assert.deepEqual(commands, [{ binary: 'herdr', args: [
     'plugin', 'pane', 'open', '--plugin', 'herdr-keyboard', '--entrypoint', 'picker',
-    '--target-pane', 'w1:p2', '--env', 'HERDR_KEYBOARD_TARGET=w1:p2',
+    '--env', 'HERDR_KEYBOARD_TARGET=w1:p2',
   ] }]);
 });
 
