@@ -24,3 +24,23 @@ test('labels cannot insert terminal control sequences or overflow CJK cell width
   assert.equal(fit('abcdef', 3), 'abc');
   assert.ok(!fit('\x1b[2J', 10).includes('\x1b'));
 });
+
+test('composer controls and all base-key cells have disjoint touch targets', () => {
+  for (const columns of [25, 32, 40, 41, 80]) {
+    for (const rows of [14, 16, 22, 30]) {
+      const view = layout(columns, rows, 15, 0, true);
+      assert.equal(view.compact, false);
+      const occupied = new Set();
+      for (const button of view.buttons) {
+        for (let x = button.x; x < button.x + button.width; x++) {
+          for (let y = button.y; y < button.y + button.height; y++) {
+            assert.ok(x >= 1 && x < columns && y >= 1 && y <= rows);
+            assert.ok(!occupied.has(`${x},${y}`), `overlap at ${x},${y}`);
+            occupied.add(`${x},${y}`);
+            assert.equal(hitTest(view, x, y), button.action);
+          }
+        }
+      }
+    }
+  }
+});

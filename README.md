@@ -29,6 +29,20 @@ Mobile Keyboard
 herdr plugin pane open --plugin herdr-keyboard --entrypoint picker
 ```
 
+## 키 조합 만들기
+
+팝업 위쪽 **Compose**를 탭하거나 `c`를 누릅니다.
+
+1. **Ctrl / Alt / Shift**를 원하는 만큼 켜거나 끕니다.
+2. **Up / Down / Left / Right / Tab / Enter** 등의 기본 키를 선택합니다.
+3. 화면에 표시된 조합을 확인하고 **Send**를 누릅니다.
+
+예: **Alt → Shift → Up → Send**로 `alt+shift+up`을 보냅니다. 기본 키를 선택하는 것만으로는 전송되지 않습니다. 터치가 없어도 `a`는 Alt, `s`는 Shift, `t`는 Ctrl을 전환하고 숫자로 기본 키를 고른 뒤 Enter로 전송할 수 있습니다.
+
+목록에 없는 문자·숫자·기능 키는 **Key** (`k`)를 누르고 `a`, `7`, `f2`, `plus` 같은 키 이름을 입력하세요. 첫 Enter는 기본 키를 확정하고, 다음 Enter 또는 Send가 완성된 조합을 전송합니다. 입력 도중 Esc는 키 이름 입력을 취소합니다.
+
+`c`로 자주 쓰는 조합 목록으로 돌아갑니다. **Keep:ON**이면 조합을 유지한 채 여러 번 전송할 수 있습니다. 조합기는 최소 25열 × 14행이 필요합니다.
+
 대상 터미널의 Herdr 플러그인 액션에서 다음 중 하나를 실행합니다.
 
 | 액션 | 전송 키 |
@@ -45,7 +59,7 @@ npm test
 
 참고: [Herdr 플러그인 문서](https://herdr.dev/docs/plugins/)
 
-## 개발 범위와 확인 방법
+## 선택과 전송
 
 Alt/Shift + 방향 키, Shift + Tab/Enter, Esc, Tab, 방향 키, Ctrl + A/E/R/C/G/O 등 20개 조합을 제공합니다. 기존 첫 세 번호는 유지합니다. 페이지마다 번호를 다시 매기며 `n`/`p` 또는 화면의 Next/Prev로 이동합니다. 화면 크기에 따라 한 페이지의 항목 수가 달라집니다.
 

@@ -6,7 +6,7 @@ export function createInputDecoder(emit) {
   let escapeTimer;
   const keys = { '\x1b[A': 'up', '\x1b[B': 'down', '\x1b[C': 'right', '\x1b[D': 'left',
     '\x1b[5~': 'previous', '\x1b[6~': 'next', '\r': 'enter', '\n': 'enter',
-    '\x03': 'close', '\x04': 'close' };
+    '\x03': 'close', '\x04': 'close', '\x7f': 'backspace', '\b': 'backspace' };
 
   function feed(chunk) {
     clearTimeout(escapeTimer);

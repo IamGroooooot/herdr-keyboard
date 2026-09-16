@@ -4,6 +4,7 @@ import { sendKey } from './keyboard.mjs';
 import { loadConfig } from './shortcuts.mjs';
 import { createInputDecoder } from './input.mjs';
 import { layout, hitTest, render } from './view.mjs';
+import { baseKeys, composedKey, setBase } from './composer.mjs';
 
 export function targetPane(env) {
   // Popups have no HERDR_PANE_ID. Their context refers to the underlying pane.
@@ -27,7 +28,9 @@ export function pickShortcut(input = process.stdin, output = process.stdout, env
   const pane = targetPane(env);
   if (!input.isTTY) throw new Error('Keyboard requires an interactive terminal.');
   const config = loadConfig(env);
-  const entries = config.shortcuts;
+  let entries = config.shortcuts;
+  let composing = false;
+  const composer = { ctrl: false, alt: false, shift: false, base: null, typing: null };
   let closeAfterSend = config.closeAfterSend;
   let page = 0;
   let selected = 0;
@@ -38,10 +41,11 @@ export function pickShortcut(input = process.stdin, output = process.stdout, env
     const wasRaw = Boolean(input.isRaw);
     let finished = false;
     const draw = () => {
-      view = layout(output.columns || 40, output.rows || 22, entries.length, page);
+      view = layout(output.columns || 40, output.rows || 22, entries.length, page, composing);
       page = view.page;
       selected = Math.min(selected, Math.max(0, entries.length - page * view.pageSize - 1), Math.max(0, view.pageSize - 1));
-      output.write(render(view, entries, pane, selected, closeAfterSend, status));
+      output.write(render(view, entries, pane, selected, closeAfterSend, status,
+        composing ? { ...composer, preview: composedKey(composer) } : null));
     };
     const finish = () => {
       if (finished) return;
@@ -60,40 +64,98 @@ export function pickShortcut(input = process.stdin, output = process.stdout, env
       resolve();
     };
     const onError = () => finish();
-    const choose = (index) => {
-      const entry = entries[page * view.pageSize + index];
-      if (!entry || index >= view.pageSize) return;
-      selected = index;
+    const transmit = (key, label = key) => {
       try {
-        send(pane, entry.key, env);
+        send(pane, key, env);
         if (closeAfterSend) { finish(); return; }
-        status = `Sent: ${entry.label}`;
+        status = `Sent: ${label}`;
       } catch (error) {
         // Keep the message visible; never retry a possibly delivered key automatically.
         status = `Failed: ${error.message}`;
       }
       draw();
     };
+    const choose = (index) => {
+      const entry = entries[page * view.pageSize + index];
+      if (!entry || index >= view.pageSize) return;
+      selected = index;
+      if (composing) {
+        composer.base = entry.key;
+        status = '';
+        draw();
+      } else transmit(entry.key, entry.label);
+    };
     const act = (action) => {
       if (action === 'close') { finish(); return; }
+      if (action === 'compose') {
+        composing = !composing;
+        entries = composing ? baseKeys : config.shortcuts;
+        composer.typing = null;
+        page = 0;
+        selected = 0;
+        status = '';
+        draw();
+        return;
+      }
       if (view.compact) return;
       if (typeof action === 'number') { choose(action); return; }
+      if (composing) {
+        if (['ctrl', 'alt', 'shift'].includes(action)) {
+          composer[action] = !composer[action];
+          status = '';
+        }
+        if (action === 'type-key') {
+          composer.typing = '';
+          status = 'Type key name. Enter: set';
+        }
+        if (['up', 'down', 'left', 'right'].includes(action)) {
+          composer.base = action;
+          status = '';
+        }
+        if (action === 'send' || action === 'enter') {
+          const key = composedKey(composer);
+          if (key) { transmit(key); return; }
+          status = 'Choose a key first.';
+        }
+      }
       if (action === 'repeat') closeAfterSend = !closeAfterSend;
       if (action === 'next' || action === 'previous') {
         page = (page + (action === 'next' ? 1 : -1) + view.pages) % view.pages;
         selected = 0;
       }
-      if (action === 'up' || action === 'left') selected = Math.max(0, selected - 1);
-      if (action === 'down' || action === 'right') selected++;
-      if (action === 'enter') { choose(selected); return; }
+      if (!composing) {
+        if (action === 'up' || action === 'left') selected = Math.max(0, selected - 1);
+        if (action === 'down' || action === 'right') selected++;
+        if (action === 'enter') { choose(selected); return; }
+      }
       draw();
     };
     const decoder = createInputDecoder((event) => {
       if (finished) return;
+      if (composer.typing !== null) {
+        const key = event.type === 'key' ? event.key : hitTest(view, event.x, event.y);
+        if (key === 'close') { composer.typing = null; status = ''; }
+        else if (key === 'backspace') composer.typing = composer.typing.slice(0, -1);
+        else if (key === 'enter' || key === 'send') {
+          try {
+            setBase(composer, composer.typing);
+            composer.typing = null;
+            status = 'Ready. Send to transmit.';
+          } catch (error) { status = error.message; }
+        } else if (event.type === 'key' && /^[a-zA-Z0-9]$/.test(key) && composer.typing.length < 16) {
+          composer.typing += key;
+        }
+        draw();
+        return;
+      }
       if (event.type === 'click') { act(hitTest(view, event.x, event.y)); return; }
       const key = event.key;
+      if (composing && ['a', 's', 't', 'k'].includes(key)) {
+        act({ a: 'alt', s: 'shift', t: 'ctrl', k: 'type-key' }[key]);
+        return;
+      }
       const action = /^[1-9]$/.test(key) ? Number(key) - 1 :
-        ({ q: 'close', '0': 'close', r: 'repeat', p: 'previous', n: 'next' }[key] || key);
+        ({ q: 'close', '0': 'close', r: 'repeat', p: 'previous', n: 'next', c: 'compose' }[key] || key);
       act(action);
     });
     input.setRawMode(true);

@@ -101,3 +101,60 @@ test('pasted digits are ignored; EOF restores mouse and terminal modes', async (
   assert.match(screen, /\x1b\[\?1049l/);
   assert.equal(input.isRaw, false);
 });
+
+test('composer previews multiple modifiers and sends only on explicit Send', async () => {
+  const input = terminal();
+  const output = new PassThrough();
+  let screen = '';
+  output.on('data', (data) => { screen += data; });
+  const sent = [];
+  const done = pickShortcut(input, output, { HERDR_PANE_ID: 'w1:p2' }, (pane, key) => sent.push([pane, key]));
+  input.write('cats1'); // Compose, Alt, Ctrl, Shift, Up.
+  assert.deepEqual(sent, []);
+  assert.match(screen, /ctrl\+alt\+shift\+up/);
+  input.write('\r');
+  await done;
+  assert.deepEqual(sent, [['w1:p2', 'ctrl+alt+shift+up']]);
+});
+
+test('touch-only composition selects Alt and Left before sending once', async () => {
+  const input = terminal();
+  const output = new PassThrough();
+  output.columns = 40;
+  output.rows = 22;
+  const sent = [];
+  const done = pickShortcut(input, output, { HERDR_PANE_ID: 'w1:p2' }, (_, key) => sent.push(key));
+  const tap = (x, y) => input.write(`\x1b[<0;${x};${y}M\x1b[<0;${x};${y}m`);
+  tap(4, 2); // Compose.
+  tap(10, 4); // Alt.
+  tap(4, 9); // Left (two columns, second row).
+  assert.deepEqual(sent, []);
+  tap(4, 19); // Send.
+  await done;
+  assert.deepEqual(sent, ['alt+left']);
+});
+
+test('custom letter/function keys, modifier toggles, and keep-open compose correctly', async () => {
+  const input = terminal();
+  const output = new PassThrough();
+  const sent = [];
+  const done = pickShortcut(input, output, { HERDR_PANE_ID: 'w1:p2' }, (_, key) => sent.push(key));
+  input.write('crtska\r'); // Compose, keep open, Ctrl, Shift, type a, set.
+  assert.deepEqual(sent, []);
+  input.write('\r');
+  assert.deepEqual(sent, ['ctrl+shift+a']);
+  input.write('skf2\r\r'); // Toggle Shift off; set F2; send.
+  assert.deepEqual(sent, ['ctrl+shift+a', 'ctrl+f2']);
+  input.write('0');
+  await done;
+});
+
+test('empty composition and invalid custom keys never send', async () => {
+  const input = terminal();
+  const output = new PassThrough();
+  const done = pickShortcut(input, output, { HERDR_PANE_ID: 'w1:p2' }, () => assert.fail('must not send'));
+  input.write('c\rkbroke\r');
+  input.write('\x03'); // Cancel typing.
+  input.write('0');
+  await done;
+});
