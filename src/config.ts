@@ -59,14 +59,10 @@ const ConfigInput = Schema.Struct({
 });
 
 export const shortcuts: Array.NonEmptyReadonlyArray<Shortcut> = Array.map([
-  ['Alt + Up', 'alt+up'], ['Shift + Tab', 'shift+tab'], ['Shift + Enter', 'shift+enter'],
-  ['Ctrl + R', 'ctrl+r'], ['Ctrl + G', 'ctrl+g'], ['Ctrl + O', 'ctrl+o'],
-  ['Ctrl + T', 'ctrl+t'], ['Ctrl + C', 'ctrl+c'], ['Ctrl + B', 'ctrl+b'],
-  ['Ctrl + A', 'ctrl+a'], ['Ctrl + E', 'ctrl+e'], ['Ctrl + U', 'ctrl+u'],
-  ['Ctrl + K', 'ctrl+k'], ['Ctrl + W', 'ctrl+w'], ['Ctrl + Y', 'ctrl+y'],
-  ['Alt + B', 'alt+b'], ['Alt + F', 'alt+f'], ['Ctrl + J', 'ctrl+j'],
-  ['Shift + Up', 'shift+up'], ['Shift + Down', 'shift+down'],
-] as const satisfies Array.NonEmptyReadonlyArray<readonly [string, KeyChordName]>,
-  ([label, key]) => ({ label, key: KeyChord.make(key) }));
+  'alt+up', 'shift+tab', 'shift+enter', 'ctrl+r', 'ctrl+g', 'ctrl+o',
+  'ctrl+t', 'ctrl+c', 'ctrl+b', 'ctrl+a', 'ctrl+e', 'ctrl+u',
+  'ctrl+k', 'ctrl+w', 'ctrl+y', 'alt+b', 'alt+f', 'ctrl+j', 'shift+up', 'shift+down',
+] as const satisfies Array.NonEmptyReadonlyArray<KeyChordName>,
+  (key) => ({ label: key, key: KeyChord.make(key) }));
 
 export const defaultConfig: KeyboardConfig = { closeAfterSend: true, shortcuts };

@@ -1,5 +1,5 @@
 import { modifierHotkeys } from '../domain/actions.js';
-import type { BaseKey, KeyChord, Modifier, PaneId } from '../domain/keys.js';
+import type { BaseKey, KeyChord, PaneId } from '../domain/keys.js';
 import type { Composer } from '../domain/composer.js';
 import type { Button, View } from './layout.js';
 
@@ -39,7 +39,7 @@ function renderButton(view: View, button: Button, content: ScreenContent): strin
   switch (action) {
     case 'ctrl': case 'alt': case 'shift':
       return `${cursorAt(button.x, button.y)}${content.composer?.[action] ? '\x1b[7m' : '\x1b[100m'}` +
-        fit(`[${modifierHotkeys[action]}]${modifierLabels[action]}`, button.width) + '\x1b[0m';
+        fit(`[${modifierHotkeys[action]}]${action}`, button.width) + '\x1b[0m';
     case 'compose':
       return textAt(view, button.x, button.y,
         `[m] ${content.composer ? 'Shortcuts' : 'Compose'}   ${view.page + 1}/${view.pages}`);
@@ -47,7 +47,7 @@ function renderButton(view: View, button: Button, content: ScreenContent): strin
     case 'next': return textAt(view, button.x, button.y, '[n] Next');
     case 'repeat': return textAt(view, button.x, button.y, `[r] Keep:${content.closeAfterSend ? 'OFF' : 'ON '}`);
     case 'close': return textAt(view, button.x, button.y, '[0] Exit');
-    case 'send': return textAt(view, button.x, button.y, '[Enter] Send');
+    case 'send': return textAt(view, button.x, button.y, '[enter] Send');
     case 'type-key': return textAt(view, button.x, button.y, '[k] Key');
     default: return action satisfies never;
   }
@@ -58,8 +58,7 @@ function renderChoice(button: Button, index: number, view: View, content: Screen
   if (!entry) return '';
   const active = content.composer ? content.composer.base === entry.key : content.selected === index;
   return cursorAt(button.x, button.y) + (active ? '\x1b[7m' : '\x1b[100m') +
-    fit(` ${index + 1} ${entry.label}`, button.width) + '\x1b[0m' +
-    cursorAt(button.x, button.y + 1) + '\x1b[90m' + fit(`   ${entry.key}`, button.width) + '\x1b[0m';
+    fit(` ${index + 1} ${entry.label}`, button.width) + '\x1b[0m';
 }
 
 function textAt(view: View, x: number, y: number, text: string): string {
@@ -69,8 +68,6 @@ function textAt(view: View, x: number, y: number, text: string): string {
 function cursorAt(x: number, y: number): string {
   return `\x1b[${y};${x}H`;
 }
-
-const modifierLabels = { ctrl: 'Ctrl', alt: 'Alt', shift: 'Shift' } as const satisfies Readonly<Record<Modifier, string>>;
 
 export function fit(text: string, width: number) {
   let result = '';

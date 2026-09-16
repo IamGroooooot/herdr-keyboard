@@ -1,6 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { fit } from '../src/terminal/view.js';
+import { fit, render } from '../src/terminal/view.js';
+import { shortcuts } from '../src/config.js';
+import { baseKeys } from '../src/domain/composer.js';
+import { PaneId } from '../src/domain/keys.js';
 import { layout, hitTest } from '../src/terminal/layout.js';
 import type { Button } from '../src/terminal/layout.js';
 
@@ -25,12 +28,44 @@ test('shortcut and composer buttons stay visible, disjoint and clickable across 
     assert.equal(view.compact, false, context);
     assert.ok(view.pageSize >= 1 && view.pageSize <= 9, context);
     assert.ok(view.page >= 0 && view.page < view.pages, context);
+    for (const button of view.buttons.filter((button) => typeof button.action === 'number')) {
+      assert.equal(button.height, 1, context);
+      assert.ok(button.y < view.height - (scenario.composing ? 5 : 4), `${context}: choice overlaps footer`);
+    }
     const occupied = new Set<string>();
     for (const { x, y, expected, actual } of cells) {
       assert.ok(x >= 1 && x < scenario.columns && y >= 1 && y <= scenario.rows, context);
       assert.ok(!occupied.has(`${x},${y}`), `${context}: overlap at ${x},${y}`);
       occupied.add(`${x},${y}`);
       assert.equal(actual, expected, `${context}: click at ${x},${y}`);
+    }
+  }
+});
+
+test('default shortcuts and composer keys use lowercase labels without a duplicate key line', () => {
+  // Arrange
+  const cases = [
+    { composing: false, entries: shortcuts.slice(0, 3), expected: ['alt+up', 'shift+tab', 'shift+enter'] },
+    { composing: true, entries: baseKeys.slice(0, 3), expected: ['up', 'down', 'left'] },
+  ];
+
+  // Act
+  const screens = cases.map(({ composing, entries }) => render(layout(40, 22, entries.length, 0, composing), {
+    entries, pane: PaneId.make('w1:p2'), selected: 0, closeAfterSend: true, status: '',
+    composer: composing ? { ctrl: false, alt: false, shift: false, base: null, preview: null, typing: null } : null,
+  }).replace(/\x1b\[[0-9;]*m/g, ''));
+
+  // Assert
+  for (const [index, scenario] of cases.entries()) {
+    const screen = screens[index]!;
+    for (const [choice, key] of scenario.expected.entries()) {
+      assert.ok(screen.includes(` ${choice + 1} ${key}`));
+      assert.equal(screen.split(key).length - 1, 1, `${key} should appear only once`);
+    }
+    if (scenario.composing) {
+      for (const modifier of ['[c]ctrl', '[a]alt', '[s]shift', '[enter] Send']) {
+        assert.ok(screen.includes(modifier), modifier);
+      }
     }
   }
 });

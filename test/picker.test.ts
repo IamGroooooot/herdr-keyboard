@@ -50,7 +50,7 @@ test('a failed send displays the error without retrying or closing', { timeout: 
 test('a touch press and release send the visible shortcut once', { timeout: 5000 }, async (t) => {
   // Arrange
   const session = await openPicker(t);
-  const pressAndRelease = '\x1b[<0;4;6M\x1b[<0;4;6m';
+  const pressAndRelease = '\x1b[<0;4;5M\x1b[<0;4;5m';
 
   // Act
   session.input.write(pressAndRelease);
@@ -62,20 +62,20 @@ test('a touch press and release send the visible shortcut once', { timeout: 5000
 });
 
 test('Keep allows sending shortcuts from successive pages', { timeout: 5000 }, async (t) => {
-  // Arrange: the 40-column, 22-row terminal shows seven shortcuts per page.
+  // Arrange: the 40-column, 22-row terminal shows nine shortcuts per page.
   const session = await openPicker(t);
 
   // Act
   session.input.write('r'); // Keep on
   session.input.write('2'); // Shift + Tab
   session.input.write('n'); // Next page
-  session.input.write('1'); // Ctrl + C
+  session.input.write('1'); // Ctrl + A
   session.input.write('q');
   const result = await session.done;
 
   // Assert
   assert.ok(Exit.isSuccess(result));
-  assert.deepEqual(session.sent, [['w1:p2', 'shift+tab'], ['w1:p2', 'ctrl+c']]);
+  assert.deepEqual(session.sent, [['w1:p2', 'shift+tab'], ['w1:p2', 'ctrl+a']]);
 });
 
 test('Down follows the visible column after resizing to a two-column menu', { timeout: 5000 }, async (t) => {
@@ -158,7 +158,7 @@ test('touch-only composition sends Alt + Left only after tapping Send', { timeou
   // Act
   tap(4, 2); // Compose
   tap(10, 4); // Alt
-  tap(4, 9); // Left
+  tap(4, 8); // Left
   await waitFor(() => session.output.screen.includes('alt+left'), 'Alt + Left preview');
   const beforeSend = [...session.sent];
   tap(4, 19); // Send

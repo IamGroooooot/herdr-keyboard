@@ -16,9 +16,7 @@ export function setBase(composer: Composer, value: unknown): Either.Either<Compo
 }
 
 export const baseKeys: Array.NonEmptyReadonlyArray<{ readonly label: string; readonly key: BaseKey }> = Array.map([
-  ['Up', 'up'], ['Down', 'down'], ['Left', 'left'], ['Right', 'right'],
-  ['Tab', 'tab'], ['Enter', 'enter'], ['Esc', 'esc'], ['Space', 'space'],
-  ['Backspace', 'backspace'], ['Delete', 'delete'], ['Home', 'home'], ['End', 'end'],
-  ['Page Up', 'pageup'], ['Page Down', 'pagedown'], ['Insert', 'insert'],
-] as const satisfies Array.NonEmptyReadonlyArray<readonly [string, BaseKeyName]>,
-  ([label, key]) => ({ label, key: BaseKey.make(key) }));
+  'up', 'down', 'left', 'right', 'tab', 'enter', 'esc', 'space',
+  'backspace', 'delete', 'home', 'end', 'pageup', 'pagedown', 'insert',
+] as const satisfies Array.NonEmptyReadonlyArray<BaseKeyName>,
+  (key) => ({ label: key, key: BaseKey.make(key) }));
