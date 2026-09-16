@@ -6,17 +6,24 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { normalizeKey, parseBaseKey } from '../src/domain/keys.js';
 import { validateConfig, loadConfig } from '../src/config.js';
+import { keyAction } from '../src/domain/actions.js';
 
 test('aliases normalize; invalid and multi-key inputs have typed failures', () => {
   assert.equal(Either.getOrThrow(normalizeKey('Opt + Down')), 'alt+down');
   assert.equal(Either.getOrThrow(normalizeKey('shift + CONTROL + a')), 'ctrl+shift+a');
   assert.equal(Either.getOrThrow(normalizeKey('Escape')), 'esc');
+  assert.equal(Either.getOrThrow(normalizeKey('SHIFT+Opt+CONTROL+F12')), 'ctrl+alt+shift+f12');
   for (const value of ['ctrl+ctrl+a', 'prefix+a', 'cmd+a', 'ctrl+', 'a b', 'a\nenter', '', '\x1b', 1, null]) {
     const result = normalizeKey(value);
     assert.ok(Either.isLeft(result));
     assert.equal(result.left._tag, 'InvalidKey');
   }
   assert.ok(Either.isLeft(parseBaseKey('ctrl+a')));
+  for (const value of ['f0', 'f13', 'ctrl+constructor', '__proto__', 'toString']) {
+    assert.ok(Either.isLeft(normalizeKey(value)));
+    assert.equal(keyAction(value, true), undefined);
+    assert.equal(keyAction(value, false), undefined);
+  }
 });
 
 test('Schema rejects invalid config before the terminal starts', async () => {

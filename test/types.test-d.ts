@@ -4,6 +4,8 @@ import { pickShortcut } from '../src/picker.js';
 import { BaseKey, KeyChord, PaneId } from '../src/domain/keys.js';
 import type { InputEvent, PickerMode } from '../src/domain/actions.js';
 import type { Composer } from '../src/domain/composer.js';
+import { baseKeys } from '../src/domain/composer.js';
+import type { KeyboardConfig } from '../src/config.js';
 
 function contracts(service: Herdr['Type'], pane: PaneId, key: KeyChord) {
   service.sendKey(pane, key);
@@ -21,6 +23,16 @@ function contracts(service: Herdr['Type'], pane: PaneId, key: KeyChord) {
   const mode: PickerMode = { _tag: 'Shortcuts', text: 'abc' };
   // @ts-expect-error Composer base keys must be validated.
   const composer: Composer = { ctrl: false, alt: false, shift: false, base: 'ctrl+a' };
-  return { base, event, mode, composer };
+  // @ts-expect-error Built-in chords must use supported key names.
+  KeyChord.make('ctrl+upp');
+  // @ts-expect-error Duplicate modifiers are not canonical chords.
+  KeyChord.make('ctrl+ctrl+a');
+  // @ts-expect-error Only f1 through f12 are supported.
+  BaseKey.make('f13');
+  // @ts-expect-error A validated configuration always has at least one shortcut.
+  const empty: KeyboardConfig = { closeAfterSend: true, shortcuts: [] };
+  // @ts-expect-error Shared key definitions cannot be changed by consumers.
+  baseKeys[0].key = BaseKey.make('esc');
+  return { base, event, mode, composer, empty };
 }
 void contracts;

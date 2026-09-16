@@ -1,13 +1,13 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { Data, Effect, Either, Schema } from 'effect';
+import { Array, Data, Effect, Either, Schema } from 'effect';
 import { KeyChord, normalizeKey } from './domain/keys.js';
-import type { Shortcut } from './domain/keys.js';
+import type { KeyChordName, Shortcut } from './domain/keys.js';
 
 export type Environment = Readonly<Record<string, string | undefined>>;
 export interface KeyboardConfig {
   readonly closeAfterSend: boolean;
-  readonly shortcuts: ReadonlyArray<Shortcut>;
+  readonly shortcuts: Array.NonEmptyReadonlyArray<Shortcut>;
 }
 export class ConfigError extends Data.TaggedError('ConfigError')<{ readonly message: string }> {}
 
@@ -33,11 +33,11 @@ export function loadConfig(env: Environment = process.env): Effect.Effect<Keyboa
 export function validateConfig(value: unknown): Effect.Effect<KeyboardConfig, ConfigError> {
   return Schema.decodeUnknown(ConfigInput, { onExcessProperty: 'error' })(value).pipe(
     Effect.mapError((cause) => new ConfigError({ message: cause.message })),
-    Effect.flatMap((config) => Effect.forEach(config.shortcuts ?? shortcuts, (entry) =>
+    Effect.flatMap((config) => Effect.all(Array.map(config.shortcuts ?? shortcuts, (entry) =>
       normalizeKey(entry.key).pipe(
         Either.map((key) => ({ label: entry.label.trim(), key })),
         Either.mapLeft((cause) => new ConfigError({ message: cause.message })),
-      )).pipe(Effect.map((entries) => ({ closeAfterSend: config.closeAfterSend ?? true, shortcuts: entries })))),
+      ))).pipe(Effect.map((entries) => ({ closeAfterSend: config.closeAfterSend ?? true, shortcuts: entries })))),
   );
 }
 
@@ -53,18 +53,19 @@ const Label = Schema.String.pipe(Schema.filter((value) =>
   value.trim().length > 0 && value.length <= 60 && !/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u.test(value)));
 const ConfigInput = Schema.Struct({
   closeAfterSend: Schema.optional(Schema.Boolean),
-  shortcuts: Schema.optional(Schema.NullOr(Schema.Array(Schema.Struct({ label: Label, key: Schema.String })).pipe(
-    Schema.minItems(1), Schema.maxItems(90),
+  shortcuts: Schema.optional(Schema.NullOr(Schema.NonEmptyArray(Schema.Struct({ label: Label, key: Schema.String })).pipe(
+    Schema.maxItems(90),
   ))),
 });
 
-export const shortcuts: ReadonlyArray<Shortcut> = ([
+export const shortcuts: Array.NonEmptyReadonlyArray<Shortcut> = Array.map([
   ['Opt + Down', 'alt+down'], ['Shift + Tab', 'shift+tab'], ['Shift + Up', 'shift+up'],
   ['Opt + Up', 'alt+up'], ['Shift + Down', 'shift+down'], ['Escape', 'esc'],
   ['Tab', 'tab'], ['Up', 'up'], ['Down', 'down'], ['Shift + Enter', 'shift+enter'],
   ['Opt + Left', 'alt+left'], ['Opt + Right', 'alt+right'], ['Shift + Left', 'shift+left'],
   ['Shift + Right', 'shift+right'], ['Ctrl + A', 'ctrl+a'], ['Ctrl + E', 'ctrl+e'],
   ['Ctrl + R', 'ctrl+r'], ['Ctrl + C', 'ctrl+c'], ['Ctrl + G', 'ctrl+g'], ['Ctrl + O', 'ctrl+o'],
-] satisfies ReadonlyArray<readonly [string, string]>).map(([label, key]) => ({ label, key: KeyChord.make(key) }));
+] as const satisfies Array.NonEmptyReadonlyArray<readonly [string, KeyChordName]>,
+  ([label, key]) => ({ label, key: KeyChord.make(key) }));
 
 export const defaultConfig: KeyboardConfig = { closeAfterSend: true, shortcuts };

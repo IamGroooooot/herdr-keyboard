@@ -1,4 +1,5 @@
-import type { Direction, Modifier } from './keys.js';
+import { Modifier } from './keys.js';
+import type { Direction } from './keys.js';
 
 export type InputEvent =
   | { readonly type: 'key'; readonly key: string }
@@ -13,17 +14,20 @@ export type PickerMode =
   | { readonly _tag: 'TypingKey'; readonly text: string };
 
 export function keyAction(key: string, composing: boolean): Action | undefined {
-  if (composing && modifierBindings[key]) return modifierBindings[key];
+  if (composing) {
+    const modifier = Modifier.literals.find((modifier) => modifierHotkeys[modifier] === key);
+    if (modifier) return modifier;
+    if (key === 'k') return 'type-key';
+  }
   if (/^[1-9]$/.test(key)) return Number(key) - 1;
-  return commonBindings[key];
+  return commonBindings.get(key);
 }
 
-export const modifierBindings: Readonly<Record<string, Action>> = {
-  a: 'alt', s: 'shift', c: 'ctrl', k: 'type-key',
-};
-export const modifierHotkeys = { ctrl: 'c', alt: 'a', shift: 's' } satisfies Record<Modifier, string>;
+export const modifierHotkeys = { ctrl: 'c', alt: 'a', shift: 's' } as const satisfies Readonly<Record<Modifier, string>>;
 
-const commonBindings: Readonly<Record<string, Action>> = {
-  q: 'close', '0': 'close', close: 'close', r: 'repeat', p: 'previous', n: 'next', m: 'compose',
-  up: 'up', down: 'down', left: 'left', right: 'right', enter: 'enter', next: 'next', previous: 'previous',
-};
+const commonBindings: ReadonlyMap<string, Action> = new Map([
+  ['q', 'close'], ['0', 'close'], ['close', 'close'], ['r', 'repeat'],
+  ['p', 'previous'], ['n', 'next'], ['m', 'compose'],
+  ['up', 'up'], ['down', 'down'], ['left', 'left'], ['right', 'right'],
+  ['enter', 'enter'], ['next', 'next'], ['previous', 'previous'],
+]);
