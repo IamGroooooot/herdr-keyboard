@@ -1,17 +1,11 @@
 import { spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
-
-export const shortcuts = [
-  { label: 'Opt + Down', key: 'alt+down' },
-  { label: 'Shift + Tab', key: 'shift+tab' },
-  { label: 'Shift + Up', key: 'shift+up' },
-];
+import { normalizeKey } from './shortcuts.mjs';
+export { shortcuts } from './shortcuts.mjs';
 
 export function sendKey(pane, key, env = process.env, run = spawnSync) {
   if (!pane) throw new Error('No target pane. Run this action from a Herdr pane.');
-  if (!shortcuts.some((shortcut) => shortcut.key === key)) {
-    throw new Error(`Unsupported shortcut: ${key}`);
-  }
+  key = normalizeKey(key);
   const result = run(env.HERDR_BIN_PATH || 'herdr', ['pane', 'send-keys', pane, key], {
     env, encoding: 'utf8', timeout: 5000,
   });

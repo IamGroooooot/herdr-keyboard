@@ -18,7 +18,7 @@ test('each shortcut sends one logical key to the explicit target', () => {
 test('missing target or unknown shortcut never invokes Herdr', () => {
   const run = () => assert.fail('must not send input');
   assert.throws(() => sendKey('', 'shift+tab', {}, run), /No target pane/);
-  assert.throws(() => sendKey('w7:p9', 'enter', {}, run), /Unsupported/);
+  assert.throws(() => sendKey('w7:p9', 'prefix+enter', {}, run), /Unsupported/);
 });
 
 test('send failures surface without retrying the key', () => {
