@@ -35,6 +35,7 @@ herdr plugin action invoke herdr-keyboard.open
 | 조작 | 동작 |
 | --- | --- |
 | 단축키 목록에서 단축키 탭 / `1`–`9` | 단축키 즉시 전송 |
+| 단축키 목록에서 방향키, Enter | 방향에 맞는 버튼으로 이동한 뒤 전송 |
 | **Compose** / `m` | 단축키 목록과 Compose 전환 |
 | Compose에서 `c` / `a` / `s` | Ctrl / Alt / Shift 켜기·끄기 |
 | Compose에서 기본 키 탭 / `1`–`9` | 전송 없이 기본 키 선택 |

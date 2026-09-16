@@ -45,6 +45,21 @@ export function hitTest(view: View, x: number, y: number): Action | undefined {
   return view.buttons.find((button) => x >= button.x && x < button.x + button.width && y >= button.y && y < button.y + button.height)?.action;
 }
 
+export function moveSelection(view: View, selected: number, direction: Direction): number {
+  const current = view.buttons.find((button) => button.action === selected);
+  if (!current) return selected;
+  const distance = (button: Button) => Math.abs(button.x - current.x) + Math.abs(button.y - current.y);
+  const neighbor = view.buttons.filter((button) => {
+    if (typeof button.action !== 'number') return false;
+    switch (direction) {
+      case 'up': return button.x === current.x && button.y < current.y;
+      case 'down': return button.x === current.x && button.y > current.y;
+      case 'left': return button.y === current.y && button.x < current.x;
+      case 'right': return button.y === current.y && button.x > current.x;
+    }
+  }).sort((a, b) => distance(a) - distance(b))[0];
+  return typeof neighbor?.action === 'number' ? neighbor.action : selected;
+}
 
 function controlButtons(height: number, composing: boolean): ReadonlyArray<Button> {
   const footerRow = height - (composing ? 5 : 3);

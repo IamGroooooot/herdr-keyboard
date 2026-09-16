@@ -35,6 +35,7 @@ These controls apply outside key-name entry.
 | Control | Action |
 | --- | --- |
 | In the shortcut list: tap a shortcut / `1`–`9` | Send the shortcut immediately |
+| Arrow keys, then Enter in the shortcut list | Move between buttons in that direction, then send |
 | **Compose** / `m` | Switch between the shortcut list and Compose |
 | `c` / `a` / `s` in Compose | Toggle Ctrl / Alt / Shift |
 | Tap a base key / `1`–`9` in Compose | Select the base key without sending |

@@ -69,13 +69,28 @@ test('Keep allows sending shortcuts from successive pages', { timeout: 5000 }, a
   session.input.write('r'); // Keep on
   session.input.write('2'); // Shift + Tab
   session.input.write('n'); // Next page
-  session.input.write('1'); // Up
+  session.input.write('1'); // Ctrl + C
   session.input.write('q');
   const result = await session.done;
 
   // Assert
   assert.ok(Exit.isSuccess(result));
-  assert.deepEqual(session.sent, [['w1:p2', 'shift+tab'], ['w1:p2', 'up']]);
+  assert.deepEqual(session.sent, [['w1:p2', 'shift+tab'], ['w1:p2', 'ctrl+c']]);
+});
+
+test('Down follows the visible column after resizing to a two-column menu', { timeout: 5000 }, async (t) => {
+  // Arrange
+  const session = await openPicker(t);
+
+  // Act
+  session.output.columns = 80;
+  session.output.emit('resize');
+  session.input.write('\x1b[B\r'); // Down from 1 to 3, then send
+  const result = await session.done;
+
+  // Assert
+  assert.ok(Exit.isSuccess(result));
+  assert.deepEqual(session.sent, [['w1:p2', 'shift+enter']]);
 });
 
 test('shrinking the terminal disables hidden shortcuts', { timeout: 5000 }, async (t) => {

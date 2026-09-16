@@ -1,7 +1,7 @@
 import { Either } from 'effect';
 import type { KeyboardConfig } from './config.js';
 import type { View } from './terminal/layout.js';
-import { hitTest } from './terminal/layout.js';
+import { hitTest, moveSelection } from './terminal/layout.js';
 import { keyAction } from './domain/actions.js';
 import type { InputEvent, PickerMode } from './domain/actions.js';
 import { baseKeys, composedKey, setBase } from './domain/composer.js';
@@ -55,9 +55,7 @@ export function updatePicker(state: PickerState, event: InputEvent, view: View, 
     case 'up': case 'down': case 'left': case 'right':
       return composing ? keep({ ...state,
         composer: { ...state.composer, base: BaseKey.make(action) }, status: '',
-      }) : keep({ ...state, selected: Math.max(0,
-        state.selected + (action === 'up' || action === 'left' ? -1 : 1),
-      ) });
+      }) : keep({ ...state, selected: moveSelection(view, state.selected, action) });
     case 'repeat':
       return keep({ ...state, closeAfterSend: !state.closeAfterSend });
     case 'next': case 'previous':

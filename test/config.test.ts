@@ -41,7 +41,10 @@ test('a missing configuration file uses the default shortcut list', async (t) =>
   // Assert
   assert.equal(config.closeAfterSend, true);
   assert.equal(config.shortcuts.length, 20);
-  assert.deepEqual(config.shortcuts.slice(0, 3).map(({ key }) => key), ['alt+down', 'shift+tab', 'shift+up']);
+  const keys = config.shortcuts.map(({ key }) => key);
+  assert.deepEqual(keys.slice(0, 3), ['alt+up', 'shift+tab', 'shift+enter']);
+  assert.ok(keys.every((key) => key.includes('+') && key !== 'alt+down'));
+  assert.equal(new Set(keys).size, keys.length);
 });
 
 test('custom configuration replaces shortcuts and keeps the picker open', async (t) => {
