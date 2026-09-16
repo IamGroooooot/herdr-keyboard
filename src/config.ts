@@ -45,7 +45,7 @@ function isMissingFile(cause: unknown): boolean {
   return typeof cause === 'object' && cause !== null && 'code' in cause && cause.code === 'ENOENT';
 }
 
-export function message(cause: unknown): string {
+function message(cause: unknown): string {
   return cause instanceof Error ? cause.message : String(cause);
 }
 
@@ -58,13 +58,13 @@ const ConfigInput = Schema.Struct({
   ))),
 });
 
-export const shortcuts: ReadonlyArray<Shortcut> = [
+export const shortcuts: ReadonlyArray<Shortcut> = ([
   ['Opt + Down', 'alt+down'], ['Shift + Tab', 'shift+tab'], ['Shift + Up', 'shift+up'],
   ['Opt + Up', 'alt+up'], ['Shift + Down', 'shift+down'], ['Escape', 'esc'],
   ['Tab', 'tab'], ['Up', 'up'], ['Down', 'down'], ['Shift + Enter', 'shift+enter'],
   ['Opt + Left', 'alt+left'], ['Opt + Right', 'alt+right'], ['Shift + Left', 'shift+left'],
   ['Shift + Right', 'shift+right'], ['Ctrl + A', 'ctrl+a'], ['Ctrl + E', 'ctrl+e'],
   ['Ctrl + R', 'ctrl+r'], ['Ctrl + C', 'ctrl+c'], ['Ctrl + G', 'ctrl+g'], ['Ctrl + O', 'ctrl+o'],
-].map(([label = '', key = '']) => ({ label, key: KeyChord.make(key) }));
+] satisfies ReadonlyArray<readonly [string, string]>).map(([label, key]) => ({ label, key: KeyChord.make(key) }));
 
 export const defaultConfig: KeyboardConfig = { closeAfterSend: true, shortcuts };

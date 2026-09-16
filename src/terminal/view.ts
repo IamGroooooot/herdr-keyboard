@@ -1,17 +1,49 @@
-export function render(view, entries, pane, selected, closeAfterSend, status = '', composer = null) {
-  const at = (x, y, text) => `\x1b[${y};${x}H${fit(text, Math.max(0, view.width - x + 1))}`;
+import type { Action } from '../domain/actions.js';
+import { modifierHotkeys } from '../domain/actions.js';
+import { Modifier } from '../domain/keys.js';
+import type { BaseKey, KeyChord } from '../domain/keys.js';
+import type { Composer } from '../domain/composer.js';
+
+export interface Button {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+  readonly action: Action;
+}
+export interface View {
+  readonly width: number;
+  readonly height: number;
+  readonly composing: boolean;
+  readonly compact: boolean;
+  readonly page: number;
+  readonly pageSize: number;
+  readonly pages: number;
+  readonly buttons: ReadonlyArray<Button>;
+}
+export interface ComposerPreview extends Composer {
+  readonly typing: string | null;
+  readonly preview: KeyChord | null;
+}
+export interface DisplayEntry {
+  readonly label: string;
+  readonly key: BaseKey | KeyChord;
+}
+
+export function render(view: View, entries: ReadonlyArray<DisplayEntry>, pane: string, selected: number, closeAfterSend: boolean, status = '', composer: ComposerPreview | null = null) {
+  const at = (x: number, y: number, text: string) => `\x1b[${y};${x}H${fit(text, Math.max(0, view.width - x + 1))}`;
   let output = '\x1b[2J\x1b[H';
   if (view.compact) return output + at(1, 1, `Need 25x${view.composing ? 14 : 10}. m:back q:exit`);
   output += at(2, 1, `Keyboard > ${pane}`);
   output += at(2, 2, `[m] ${composer ? 'Shortcuts' : 'Compose'}   ${view.page + 1}/${view.pages}`);
-  if (composer) renderComposer();
+  if (composer) renderComposer(composer);
   renderButtons();
   renderFooter();
   return output;
 
-  function renderComposer() {
-    for (const [index, modifier] of ['ctrl', 'alt', 'shift'].entries()) {
-      const hotkey = { ctrl: 'c', alt: 'a', shift: 's' }[modifier];
+  function renderComposer(composer: ComposerPreview) {
+    for (const [index, modifier] of Modifier.literals.entries()) {
+      const hotkey = modifierHotkeys[modifier];
       const label = { ctrl: 'Ctrl', alt: 'Alt', shift: 'Shift' }[modifier];
       output += `\x1b[4;${1 + index * 8}H${composer[modifier] ? '\x1b[7m' : '\x1b[100m'}${fit(`[${hotkey}]${label}`, 8)}\x1b[0m`;
     }
@@ -24,6 +56,7 @@ export function render(view, entries, pane, selected, closeAfterSend, status = '
       if (typeof button.action !== 'number') continue;
       const index = button.action;
       const entry = entries[view.page * view.pageSize + index];
+      if (!entry) continue;
       const active = composer ? composer.base === entry.key : selected === index;
       output += `\x1b[${button.y};${button.x}H${active ? '\x1b[7m' : '\x1b[100m'}`;
       output += fit(` ${index + 1} ${entry.label}`, button.width) + '\x1b[0m';
@@ -38,7 +71,7 @@ export function render(view, entries, pane, selected, closeAfterSend, status = '
   }
 }
 
-export function layout(columns, rows, total, page = 0, composing = false) {
+export function layout(columns: number, rows: number, total: number, page = 0, composing = false): View {
   const width = Math.max(1, columns - 1);
   const height = Math.max(1, rows);
   const minHeight = composing ? 14 : 10;
@@ -49,7 +82,7 @@ export function layout(columns, rows, total, page = 0, composing = false) {
   const pages = Math.ceil(total / pageSize);
   page = Math.max(0, Math.min(page, pages - 1));
   const count = Math.min(pageSize, total - page * pageSize);
-  const buttons = Array.from({ length: count }, (_, index) => ({
+  const buttons: Button[] = Array.from({ length: count }, (_, index) => ({
     x: 2 + (index % cols) * buttonWidth,
     y: (composing ? 7 : 4) + Math.floor(index / cols) * 2,
     width: buttonWidth - 1, height: 2, action: index,
@@ -63,7 +96,7 @@ export function layout(columns, rows, total, page = 0, composing = false) {
     { x: 17, y: height - 1, width: 8, height: 1, action: 'close' },
   );
   if (composing) {
-    for (const [index, modifier] of ['ctrl', 'alt', 'shift'].entries()) {
+    for (const [index, modifier] of Modifier.literals.entries()) {
       buttons.push({ x: 1 + index * 8, y: 4, width: 8, height: 1, action: modifier });
     }
     buttons.push(
@@ -74,11 +107,11 @@ export function layout(columns, rows, total, page = 0, composing = false) {
   return { width, height, composing, compact: false, page, pageSize, pages, buttons };
 }
 
-export function hitTest(view, x, y) {
+export function hitTest(view: View, x: number, y: number): Action | undefined {
   return view.buttons.find((button) => x >= button.x && x < button.x + button.width && y >= button.y && y < button.y + button.height)?.action;
 }
 
-export function fit(text, width) {
+export function fit(text: string, width: number) {
   let result = '';
   let used = 0;
   for (const char of text.replace(/[\p{Cc}\p{Cf}]/gu, ' ')) {
@@ -91,9 +124,9 @@ export function fit(text, width) {
 }
 
 // Use terminal-cell widths for both drawing and hit testing (including CJK labels).
-export function cellWidth(char) {
+export function cellWidth(char: string) {
   if (/\p{Mark}/u.test(char)) return 0;
-  const code = char.codePointAt(0);
+  const code = char.codePointAt(0) ?? 0;
   return code >= 0x1100 && (code <= 0x115f || code === 0x2329 || code === 0x232a ||
     (code >= 0x2e80 && code <= 0xa4cf) || (code >= 0xac00 && code <= 0xd7a3) ||
     (code >= 0xf900 && code <= 0xfaff) || (code >= 0xfe10 && code <= 0xfe6f) ||

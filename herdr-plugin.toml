@@ -1,15 +1,21 @@
 id = "herdr-keyboard"
 name = "Mobile Keyboard"
-version = "0.2.0"
+version = "0.3.0"
 min_herdr_version = "0.9.0"
 description = "Send hard-to-type key combinations from a mobile keyboard"
 platforms = ["linux", "macos", "windows"]
+
+[[build]]
+command = ["npm", "ci"]
+
+[[build]]
+command = ["npm", "run", "build"]
 
 [[actions]]
 id = "open"
 title = "Keyboard: Choose shortcut"
 contexts = ["pane"]
-command = ["node", "picker.mjs", "--open"]
+command = ["node", "dist/cli.js", "open"]
 
 [[panes]]
 id = "picker"
@@ -17,22 +23,22 @@ title = "Mobile Keyboard"
 placement = "popup"
 width = "90%"
 height = "80%"
-command = ["node", "picker.mjs"]
+command = ["node", "dist/cli.js"]
 
 [[actions]]
 id = "opt-down"
 title = "Keyboard: Opt + Down"
 contexts = ["pane"]
-command = ["node", "keyboard.mjs", "alt+down"]
+command = ["node", "dist/cli.js", "send", "alt+down"]
 
 [[actions]]
 id = "shift-tab"
 title = "Keyboard: Shift + Tab"
 contexts = ["pane"]
-command = ["node", "keyboard.mjs", "shift+tab"]
+command = ["node", "dist/cli.js", "send", "shift+tab"]
 
 [[actions]]
 id = "shift-up"
 title = "Keyboard: Shift + Up"
 contexts = ["pane"]
-command = ["node", "keyboard.mjs", "shift+up"]
+command = ["node", "dist/cli.js", "send", "shift+up"]

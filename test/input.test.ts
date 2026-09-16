@@ -1,9 +1,10 @@
+import type { InputEvent } from '../src/domain/actions.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createInputDecoder } from '../input.mjs';
+import { createInputDecoder } from '../src/terminal/input.js';
 
 test('split SGR reports emit one click; releases, drags and scroll never pick a key', () => {
-  const events = [];
+  const events: InputEvent[] = [];
   const decoder = createInputDecoder((event) => events.push(event));
   for (const chunk of ['\x1b[<0;', '12;', '4M', '\x1b[<0;12;4m', '\x1b[<32;12;4M', '\x1b[<64;12;4M']) decoder.feed(chunk);
   assert.deepEqual(events, [{ type: 'click', x: 12, y: 4 }]);
@@ -11,7 +12,7 @@ test('split SGR reports emit one click; releases, drags and scroll never pick a 
 });
 
 test('classic mouse reporting and cursor keys are decoded as whole events', () => {
-  const events = [];
+  const events: InputEvent[] = [];
   const decoder = createInputDecoder((event) => events.push(event));
   decoder.feed(Buffer.from([27, 91, 77, 32, 34]));
   decoder.feed(Buffer.from([36]));
@@ -22,7 +23,7 @@ test('classic mouse reporting and cursor keys are decoded as whole events', () =
 });
 
 test('paste and unknown CSI sequences cannot leak digits as shortcut input', () => {
-  const events = [];
+  const events: InputEvent[] = [];
   const decoder = createInputDecoder((event) => events.push(event));
   decoder.feed('\x1b[200~123q\x1b[20');
   decoder.feed('1~\x1b[99;2u\x1b[12~');
@@ -32,7 +33,7 @@ test('paste and unknown CSI sequences cannot leak digits as shortcut input', () 
 });
 
 test('Escape closes on its own; disposing cancels the delayed Escape', async () => {
-  const events = [];
+  const events: InputEvent[] = [];
   const decoder = createInputDecoder((event) => events.push(event));
   decoder.feed('\x1b');
   await new Promise((resolve) => setTimeout(resolve, 110));

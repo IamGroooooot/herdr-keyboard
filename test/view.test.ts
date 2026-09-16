@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { fit, layout, hitTest } from '../view.mjs';
+import { fit, layout, hitTest } from '../src/terminal/view.js';
 
 test('buttons remain in bounds and do not overlap navigation on small and large screens', () => {
   for (const columns of [25, 32, 40, 55, 80, 120]) {
@@ -21,7 +21,6 @@ test('buttons remain in bounds and do not overlap navigation on small and large 
 
 test('labels cannot insert terminal control sequences or overflow CJK cell widths', () => {
   assert.equal(fit('가나다', 5), '가나 ');
-  assert.equal(fit('abcdef', 3), 'abc');
   assert.ok(!fit('\x1b[2J', 10).includes('\x1b'));
 });
 

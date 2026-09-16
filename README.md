@@ -6,13 +6,17 @@
 
 ## 설치
 
-Herdr 0.9.0 이상과 Node.js 20 이상이 필요합니다. 별도 패키지 설치나 빌드 과정은 없습니다.
+Herdr 0.9.0 이상과 Node.js 20 이상이 필요합니다.
 
-저장소를 내려받은 뒤 플러그인 디렉터리를 등록합니다.
+저장소를 내려받은 뒤 해당 디렉터리에서 의존성을 설치하고 빌드합니다.
 
 ```sh
+npm ci
+npm run build
 herdr plugin link /path/to/herdr-keyboard
 ```
+
+`plugin link`는 빌드를 실행하지 않습니다. 코드를 수정하거나 업데이트한 뒤에는 `npm run build`를 다시 실행하세요. GitHub의 `plugin install`로 설치할 때는 manifest에 등록된 설치·빌드 명령이 실행됩니다.
 
 ## 실행
 
@@ -165,12 +169,12 @@ herdr plugin config-dir herdr-keyboard
 
 ## 개발과 검증
 
-- 실행 흐름: `picker.mjs`
-- 입력과 화면: `input.mjs`, `view.mjs`
-- 키 조합, 설정, 전송: `composer.mjs`, `shortcuts.mjs`, `keyboard.mjs`
+- 실행과 상태 전환: `src/cli.ts`, `src/picker.ts`, `src/picker-state.ts`
+- 키 타입과 입력·화면: `src/domain/`, `src/terminal/`
+- 설정 검증과 Herdr 호출: `src/config.ts`, `src/herdr.ts` — Effect로 오류와 자원 수명을 관리합니다.
 
 ```sh
-npm test
+npm run check
 ```
 
 자동 테스트는 전송 대상 유지, 키 조합, 터치 입력, 페이지 이동, 화면 크기 변경, 붙여넣기 무시, 취소와 오류 처리를 확인합니다.

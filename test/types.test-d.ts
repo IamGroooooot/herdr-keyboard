@@ -1,10 +1,14 @@
 import { Herdr } from '../src/herdr.js';
+import { Effect } from 'effect';
+import { pickShortcut } from '../src/picker.js';
 import { BaseKey, KeyChord, PaneId } from '../src/domain/keys.js';
 import type { InputEvent, PickerMode } from '../src/domain/actions.js';
 import type { Composer } from '../src/domain/composer.js';
 
 function contracts(service: Herdr['Type'], pane: PaneId, key: KeyChord) {
   service.sendKey(pane, key);
+  // @ts-expect-error The picker cannot run before its Herdr service is provided.
+  Effect.runPromise(pickShortcut());
   // @ts-expect-error Raw strings must be validated before sending.
   service.sendKey('w1:p2', 'ctrl+a');
   // @ts-expect-error Pane IDs and key chords are not interchangeable.

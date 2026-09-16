@@ -1,16 +1,18 @@
+import type { InputEvent } from '../domain/actions.js';
+
 // Decode complete terminal events, including mouse reports split across reads.
 // Unknown escape sequences and bracketed paste must never become number shortcuts.
-export function createInputDecoder(emit) {
+export function createInputDecoder(emit: (event: InputEvent) => void) {
   let pending = '';
   let pasting = false;
-  let escapeTimer;
-  const keys = { '\x1b[A': 'up', '\x1b[B': 'down', '\x1b[C': 'right', '\x1b[D': 'left',
+  let escapeTimer: ReturnType<typeof setTimeout> | undefined;
+  const keys: Readonly<Record<string, string>> = { '\x1b[A': 'up', '\x1b[B': 'down', '\x1b[C': 'right', '\x1b[D': 'left',
     '\x1b[5~': 'previous', '\x1b[6~': 'next', '\r': 'enter', '\n': 'enter',
     '\x03': 'close', '\x04': 'close', '\x7f': 'backspace', '\b': 'backspace' };
 
   return { feed, dispose() { clearTimeout(escapeTimer); pending = ''; } };
 
-  function feed(chunk) {
+  function feed(chunk: Buffer | string) {
     clearTimeout(escapeTimer);
     pending += Buffer.isBuffer(chunk) ? chunk.toString('latin1') : chunk;
     while (pending) {
@@ -51,12 +53,13 @@ export function createInputDecoder(emit) {
         if (pending.length < 3) return;
         const sequence = pending.slice(0, 3);
         pending = pending.slice(3);
-        const key = { A: 'up', B: 'down', C: 'right', D: 'left' }[sequence[2]];
+        const cursorKeys: Readonly<Record<string, string>> = { A: 'up', B: 'down', C: 'right', D: 'left' };
+        const key = cursorKeys[sequence.charAt(2)];
         if (key) emit({ type: 'key', key });
         continue;
       }
       if (pending[0] === '\x1b') { pending = pending.slice(2); continue; }
-      const char = pending[0];
+      const char = pending.charAt(0);
       pending = pending.slice(1);
       emit({ type: 'key', key: keys[char] || char });
     }

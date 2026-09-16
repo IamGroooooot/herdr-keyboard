@@ -18,9 +18,9 @@ export function setBase(composer: Composer, value: unknown): Either.Either<Compo
   return parseBaseKey(value).pipe(Either.map((base) => ({ ...composer, base })));
 }
 
-export const baseKeys = [
+export const baseKeys = ([
   ['Up', 'up'], ['Down', 'down'], ['Left', 'left'], ['Right', 'right'],
   ['Tab', 'tab'], ['Enter', 'enter'], ['Esc', 'esc'], ['Space', 'space'],
   ['Backspace', 'backspace'], ['Delete', 'delete'], ['Home', 'home'], ['End', 'end'],
   ['Page Up', 'pageup'], ['Page Down', 'pagedown'], ['Insert', 'insert'],
-].map(([label = '', key = '']) => ({ label, key: BaseKey.make(key) }));
+] satisfies ReadonlyArray<readonly [string, string]>).map(([label, key]) => ({ label, key: BaseKey.make(key) }));
